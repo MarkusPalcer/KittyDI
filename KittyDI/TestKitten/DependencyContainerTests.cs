@@ -1,46 +1,12 @@
-﻿using System;
-using FluentAssertions;
+﻿using FluentAssertions;
 using KittyDI;
+using KittyDI.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using TestKitten.TestClasses;
 
 namespace TestKitten
 {
-
-  public interface ITestInterface { }
-
-  public class TestImplementation : ITestInterface
-  {
-  }
-
-  public class TypeWithUnsuitableConstructor
-  {
-    public TypeWithUnsuitableConstructor(int d) { }
-
-    public TypeWithUnsuitableConstructor(int d, int d2) { }
-  }
-
-  public class TypeWithSingleConstructor
-  {
-    public TypeWithSingleConstructor(int d) { }
-  }
-
-  public class NestedResolutionType : ITestInterface
-  {
-    public NestedResolutionType(TypeWithSingleConstructor t) { }
-  }
-
-  public class MarkedConstructorType
-  {
-    [ProvidingConstructor]
-    public MarkedConstructorType(int d) { }
-
-    public MarkedConstructorType(ITestInterface t)
-    {
-      throw new NotImplementedException();
-    }
-  }
-
   [TestClass]
   public class DependencyContainerTests
   {
@@ -148,6 +114,13 @@ namespace TestKitten
       sut.RegisterInstance(2);
       sut.Invoking(x => x.Resolve<MarkedConstructorType>())
         .ShouldNotThrow();
+    }
+
+    [TestMethod]
+    public void CircularDependenciesAreDetected()
+    {
+      var sut = new DependencyContainer();
+      sut.Invoking(x => x.Resolve<CircularDependencyA>()).ShouldThrow<CircularDependencyException>();
     }
   }
 }

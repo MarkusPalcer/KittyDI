@@ -1,36 +1,12 @@
 ﻿using System;
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
-using System.Threading.Tasks;
+using KittyDI.Attribute;
+using KittyDI.Exceptions;
 
 namespace KittyDI
 {
-  [AttributeUsage(AttributeTargets.Constructor)]
-  public class ProvidingConstructorAttribute : Attribute
-  {
-    
-  }
-
-  public interface IDependencyContainer
-  {
-    T Resolve<T>();
-  }
-
-  public class DependencyException : Exception { }
-
-  public class NoSuitableConstructorFoundException : DependencyException
-  {
-    public NoSuitableConstructorFoundException(Type targetType)
-    {
-      TargetType = targetType;
-    }
-
-    public Type TargetType { get; set; }
-  }
-
   public class DependencyContainer : IDependencyContainer
   {
     private readonly Dictionary<Type, Func<object>> _factories = new Dictionary<Type, Func<object>>();
@@ -42,50 +18,9 @@ namespace KittyDI
 
     public Func<T> ResolveFactory<T>()
     {
-      var factory = ResolveFactory(typeof(T));
+      var factory = ResolveFactoryInternal(typeof(T), new HashSet<Type>());
 
       return () => (T) factory();
-    }
-
-    private Func<object> ResolveFactory(Type T)
-    {
-      Func<object> factory;
-      if (_factories.TryGetValue(T, out factory))
-      {
-        return factory;
-      }
-
-      factory = CreateFactory(T);
-      _factories[T] = factory;
-      return factory;
-    }
-
-    private Func<object> CreateFactory(Type resultType)
-    {
-      var constructors = resultType.GetConstructors();
-
-      var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
-      if (constructor != null)
-      {
-        return () => constructor.Invoke(new object[] {});
-      }
-
-      if (constructors.Length == 1)
-      {
-        constructor = constructors.First();
-      }
-      else
-      {
-        constructor = constructors.SingleOrDefault(x => x.GetCustomAttribute<ProvidingConstructorAttribute>() != null);
-      }
-      
-      if (constructor != null)
-      {
-        var parameterFactories = constructor.GetParameters().Select(param => ResolveFactory(param.ParameterType)).ToArray();
-        return () => constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
-      }
-
-      throw new NoSuitableConstructorFoundException(resultType);
     }
 
     public void RegisterFactory<T>(Func<T> factory)
@@ -117,7 +52,54 @@ namespace KittyDI
     public void RegisterImplementation<TContract, TImplementation>()
       where TImplementation : TContract
     {
-      _factories.Add(typeof(TContract), ResolveFactory(typeof(TImplementation)));
+      _factories.Add(typeof(TContract), () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] {typeof(TContract)}))());
+    }
+
+    private Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
+    {
+      if (previousChainedRequests.Contains(requestedType))
+      {
+        throw new CircularDependencyException();
+      }
+
+      Func<object> factory;
+      if (_factories.TryGetValue(requestedType, out factory))
+      {
+        return factory;
+      }
+
+      factory = CreateFactory(requestedType, previousChainedRequests);
+      _factories[requestedType] = factory;
+      return factory;
+    }
+
+    private Func<object> CreateFactory(Type resultType, ISet<Type> previousChainedRequests)
+    {
+      var constructors = resultType.GetConstructors();
+
+      var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
+      if (constructor != null)
+      {
+        return () => constructor.Invoke(new object[] { });
+      }
+
+      if (constructors.Length == 1)
+      {
+        constructor = constructors.First();
+      }
+      else
+      {
+        constructor = constructors.SingleOrDefault(x => x.GetCustomAttribute<ProvidingConstructorAttribute>() != null);
+      }
+
+      if (constructor != null)
+      {
+        var chainedRequests = new HashSet<Type>(previousChainedRequests.Concat(new[] { resultType }));
+        var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, chainedRequests)).ToArray();
+        return () => constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
+      }
+
+      throw new NoSuitableConstructorFoundException(resultType);
     }
   }
 }
