@@ -71,10 +71,12 @@
     <Compile Include="TestClasses\CircularDependencyA.cs" />
     <Compile Include="TestClasses\CircularDependencyB.cs" />
     <Compile Include="DependencyContainerTests.cs" />
-    <Compile Include="ITestInterface.cs" />
+    <Compile Include="TestClasses\ITestInterface.cs" />
+    <Compile Include="TestClasses\ITestInterface2.cs" />
     <Compile Include="TestClasses\MarkedConstructorType.cs" />
     <Compile Include="TestClasses\NestedResolutionType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
+    <Compile Include="TestClasses\TestDisposable.cs" />
     <Compile Include="TestClasses\TestImplementation.cs" />
     <Compile Include="TestClasses\TypeWithSingleConstructor.cs" />
     <Compile Include="TestClasses\TypeWithUnsuitableConstructor.cs" />

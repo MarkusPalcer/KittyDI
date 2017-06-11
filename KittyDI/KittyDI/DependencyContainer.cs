@@ -10,6 +10,14 @@ namespace KittyDI
   public class DependencyContainer : IDependencyContainer
   {
     private readonly Dictionary<Type, Func<object>> _factories = new Dictionary<Type, Func<object>>();
+    private readonly List<DependencyContainer> _containers = new List<DependencyContainer>();
+    private readonly List<IDisposable> _disposables = new List<IDisposable>();
+
+    public DependencyContainer()
+    {
+      RegisterFactory(CreateChild);
+      RegisterImplementation<IDependencyContainer, DependencyContainer>();
+    }
 
     public T Resolve<T>()
     {
@@ -47,12 +55,18 @@ namespace KittyDI
     where TImplementation : TContract
     {
       RegisterFactory<TContract, TImplementation>(() => instance);
+
+      var disposableInstance = instance as IDisposable;
+      if (disposableInstance != null)
+      {
+        _disposables.Add(disposableInstance);
+      }
     }
 
     public void RegisterImplementation<TContract, TImplementation>()
       where TImplementation : TContract
     {
-      _factories.Add(typeof(TContract), () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] {typeof(TContract)}))());
+      _factories.Add(typeof(TContract), () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] {typeof(TContract)}))()); 
     }
 
     private Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
@@ -68,6 +82,14 @@ namespace KittyDI
         return factory;
       }
 
+      foreach (var container in _containers)
+      {
+        if (container._factories.TryGetValue(requestedType, out factory))
+        {
+          return factory;
+        }
+      }
+
       factory = CreateFactory(requestedType, previousChainedRequests);
       _factories[requestedType] = factory;
       return factory;
@@ -76,6 +98,11 @@ namespace KittyDI
     private Func<object> CreateFactory(Type resultType, ISet<Type> previousChainedRequests)
     {
       var constructors = resultType.GetConstructors();
+
+      if (resultType.IsInterface)
+      {
+        throw new NoInterfaceImplementationGivenException {InterfaceType = resultType};
+      }
 
       var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
       if (constructor != null)
@@ -100,6 +127,27 @@ namespace KittyDI
       }
 
       throw new NoSuitableConstructorFoundException(resultType);
+    }
+
+    public void AddContainer(DependencyContainer addedContainer)
+    {
+      _containers.Add(addedContainer);
+    }
+
+    public DependencyContainer CreateChild()
+    {
+      var child = new DependencyContainer();
+      child.AddContainer(this);
+      _disposables.Add(child);
+      return child;
+    }
+
+    public void Dispose()
+    {
+      foreach (var singleton in _disposables) 
+      {
+        singleton.Dispose();
+      }
     }
   }
 }

@@ -1,7 +1,7 @@
 namespace TestKitten.TestClasses
 {
-  public class NestedResolutionType : ITestInterface
+  public class NestedResolutionType<T> : ITestInterface
   {
-    public NestedResolutionType(TypeWithSingleConstructor t) { }
+    public NestedResolutionType(T t) { }
   }
 }
