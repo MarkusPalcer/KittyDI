@@ -84,7 +84,7 @@ namespace TestKitten
     [TestMethod]
     public void NoSuitableConstructorPresent()
     {
-      var sut = new DependencyContainer(); 
+      var sut = new DependencyContainer();
       sut.Invoking(x => x.Resolve<TypeWithUnsuitableConstructor>())
         .ShouldThrow<NoSuitableConstructorFoundException>();
     }
@@ -95,7 +95,7 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterInstance(2);
       sut.Invoking(x => x.Resolve<TypeWithSingleConstructor>())
-        .ShouldNotThrow(); 
+        .ShouldNotThrow();
     }
 
     [TestMethod]
@@ -110,7 +110,7 @@ namespace TestKitten
     [TestMethod]
     public void MultipleConstructorsNeedAttribute()
     {
-      var sut = new DependencyContainer(); 
+      var sut = new DependencyContainer();
       sut.RegisterInstance(2);
       sut.Invoking(x => x.Resolve<MarkedConstructorType>())
         .ShouldNotThrow();
@@ -137,7 +137,7 @@ namespace TestKitten
     public void AddingContainersMakesTheirContentAccessible()
     {
       var sut = new DependencyContainer();
-      var added = new DependencyContainer(); 
+      var added = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, NestedResolutionType<ITestInterface2>>();
       added.RegisterInstance(new Mock<ITestInterface2>().Object);
 
@@ -223,11 +223,81 @@ namespace TestKitten
       testInterface.IsDisposed.Should().BeTrue();
     }
 
+    [TestMethod]
+    public void RegisteringSingletonFactoriesManually()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterFactory(() => new TestDisposable(), true);
+
+      var instance1 = sut.Resolve<TestDisposable>();
+      var instance2 = sut.Resolve<TestDisposable>();
+
+      instance1.Should().BeSameAs(instance2);
+
+      sut.Dispose();
+      instance1.IsDisposed.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void RegisteringSingletonFactoriesForInterfaceManually()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterFactory<ITestInterface>(() => new TestDisposable(), true);
+
+      var instance1 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<ITestInterface>();
+
+      instance1.Should().BeSameAs(instance2);
+
+      sut.Dispose();
+      ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void RegisteringSingletonImplementationsManually()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterImplementation<ITestInterface, TestDisposable>(true);
+
+      var instance1 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<ITestInterface>();
+
+      instance1.Should().BeSameAs(instance2);
+
+      sut.Dispose();
+      ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void ResolvingTypeMarkedAsSingleton()
+    {
+      var sut = new DependencyContainer();
+      var instance1 = sut.Resolve<TestSingleton>();
+      var instance2 = sut.Resolve<TestSingleton>();
+
+      instance1.Should().BeSameAs(instance2);
+
+      sut.Dispose();
+      ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
+    }
+
+    [TestMethod]
+    public void RegisteringImplementationMarkedAsSingleton()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterImplementation<ITestInterface, TestSingleton>();
+
+      var instance1 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<ITestInterface>();
+
+      instance1.Should().BeSameAs(instance2);
+
+      sut.Dispose();
+      ((TestDisposable)instance1).IsDisposed.Should().BeTrue();
+    }
+
     /* TODO:
      * DEPENDENCY CONTAINER:
-     * - Manually Register factories for singletons
-     * - Register types as singletons via attribute
-     * - Automatically dispose created singletons
      * - Resolve Func<T>-Constructor-Parameters
      * - Resolve Lazy<T>-Constructor-Parameters (using Func<T>-Resolution)
      * - Test combination: Type resolves Non-Singleton and Container, adds instance to container and resolves new object - instance is now treated as singleton within the nested scope but not within the outer scope
@@ -238,6 +308,6 @@ namespace TestKitten
      * REGISTRAR:
      * - Register all instantiable types in an assembly using reflection
      * - Register those types also as their base classes and interfaces if those have the Contract-Attribute
-     */ 
+     */
   }
 }

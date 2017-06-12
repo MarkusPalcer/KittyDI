@@ -78,6 +78,7 @@
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="TestClasses\TestDisposable.cs" />
     <Compile Include="TestClasses\TestImplementation.cs" />
+    <Compile Include="TestClasses\TestSingleton.cs" />
     <Compile Include="TestClasses\TypeWithSingleConstructor.cs" />
     <Compile Include="TestClasses\TypeWithUnsuitableConstructor.cs" />
   </ItemGroup>

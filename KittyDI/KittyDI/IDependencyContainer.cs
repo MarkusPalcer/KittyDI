@@ -6,9 +6,9 @@ namespace KittyDI
   {
     T Resolve<T>();
     Func<T> ResolveFactory<T>();
-    void RegisterFactory<T>(Func<T> factory);
+    void RegisterFactory<T>(Func<T> factory, bool isSingleton = false);
 
-    void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory)
+    void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory, bool isSingleton = false)
       where TImplementation : TContract;
 
     void RegisterInstance<T>(T instance);
@@ -20,7 +20,7 @@ namespace KittyDI
     void RegisterInstance<TContract, TImplementation>(TImplementation instance)
       where TImplementation : TContract;
 
-    void RegisterImplementation<TContract, TImplementation>()
+    void RegisterImplementation<TContract, TImplementation>(bool isSingleton = false)
       where TImplementation : TContract;
 
     void AddContainer(DependencyContainer addedContainer);

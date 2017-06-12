@@ -31,16 +31,25 @@ namespace KittyDI
       return () => (T) factory();
     }
 
-    public void RegisterFactory<T>(Func<T> factory)
+    public void RegisterFactory<T>(Func<T> factory, bool isSingleton = false)
     {
-      RegisterFactory<T, T>(factory);
+      RegisterFactory<T, T>(factory, isSingleton);
     }
-
-    public void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory)
+    
+    public void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory, bool isSingleton = false)
     where TImplementation : TContract
     {
-      _factories.Add(typeof(TContract), () => factory());
+      if (!isSingleton)
+      {
+        _factories.Add(typeof(TContract), () => factory());
+      }
+      else
+      {
+        _factories.Add(typeof(TContract), CreateSingletonFactory(factory));
+      }
     }
+
+
 
     public void RegisterInstance<T>(T instance)
     {
@@ -63,10 +72,19 @@ namespace KittyDI
       }
     }
 
-    public void RegisterImplementation<TContract, TImplementation>()
+    public void RegisterImplementation<TContract, TImplementation>(bool isSingleton = false)
       where TImplementation : TContract
     {
-      _factories.Add(typeof(TContract), () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] {typeof(TContract)}))()); 
+      Func<object> factory = () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] { typeof(TContract) }))();
+
+      if (!isSingleton)
+      {
+        _factories.Add(typeof(TContract), factory);
+      }
+      else
+      {
+        _factories.Add(typeof(TContract), CreateSingletonFactory(factory));
+      }
     }
 
     private Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
@@ -91,7 +109,15 @@ namespace KittyDI
       }
 
       factory = CreateFactory(requestedType, previousChainedRequests);
+
+      if (requestedType.GetCustomAttribute<SingletonAttribute>() != null)
+      {
+        factory = CreateSingletonFactory(factory);
+      }
+
       _factories[requestedType] = factory;
+
+
       return factory;
     }
 
@@ -127,6 +153,24 @@ namespace KittyDI
       }
 
       throw new NoSuitableConstructorFoundException(resultType);
+    }
+
+    private Func<object> CreateSingletonFactory<T>(Func<T> factory) 
+    {
+      var buffer = new Lazy<T>(() =>
+      {
+        var value = factory();
+        var disposableValue = value as IDisposable;
+        if (disposableValue != null)
+        {
+          _disposables.Add(disposableValue);
+        }
+
+        return value;
+      });
+
+      Func<object> newFactory = () => buffer.Value;
+      return newFactory;
     }
 
     public void AddContainer(DependencyContainer addedContainer)
