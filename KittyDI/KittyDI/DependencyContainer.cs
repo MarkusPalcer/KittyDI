@@ -7,35 +7,83 @@ using KittyDI.Exceptions;
 
 namespace KittyDI
 {
+  /// <summary>
+  /// A lightweight dependency injection container
+  /// </summary>
   public class DependencyContainer : IDependencyContainer
   {
     private readonly Dictionary<Type, Func<object>> _factories = new Dictionary<Type, Func<object>>();
     private readonly List<DependencyContainer> _containers = new List<DependencyContainer>();
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
+    private readonly List<Type> _servicesToInitialize = new List<Type>();
 
+    /// <summary>
+    /// Creates a new dependency injection container
+    /// </summary>
     public DependencyContainer()
     {
       RegisterFactory(CreateChild);
       RegisterImplementation<IDependencyContainer, DependencyContainer>();
     }
 
+    /// <summary>
+    /// Registers a type to the dependency container, so it can be resolved later
+    /// </summary>
+    /// <typeparam name="T">The type to register</typeparam>
+    public void RegisterType<T>()
+    {
+      RegisterType(typeof(T));
+    }
+
+    /// <summary>
+    /// Registers a type to the dependency container, so it can be resolved later
+    /// </summary>
+    /// <param name="registeredType">The type to register</param>
+    public void RegisterType(Type registeredType)
+    {
+      ResolveFactoryInternal(registeredType, new HashSet<Type>());
+    }
+
+    /// <summary>
+    /// Returns an instance of the requested type, resolving dependencies recursively
+    /// </summary>
+    /// <typeparam name="T">The requested type</typeparam>
+    /// <returns>An instance of the requestsed type</returns>
     public T Resolve<T>()
     {
       return ResolveFactory<T>()();
     }
 
+    /// <summary>
+    /// Returns a function that creates instances of the requested type, resolving dependencies recursively
+    /// </summary>
+    /// <typeparam name="T">The requested type</typeparam>
+    /// <returns>A function that creates instances </returns>
     public Func<T> ResolveFactory<T>()
     {
       var factory = ResolveFactoryInternal(typeof(T), new HashSet<Type>());
 
-      return () => (T) factory();
+      return () => (T)factory();
     }
 
+    /// <summary>
+    /// Register a function that is used to create an instance of a type
+    /// </summary>
+    /// <typeparam name="T">The type that the function creates</typeparam>
+    /// <param name="factory">The factory function</param>
+    /// <param name="isSingleton">If set to <code>true</code> only one instance of the type will be created and then be returned on subsequent tries of resolving the type.</param>
     public void RegisterFactory<T>(Func<T> factory, bool isSingleton = false)
     {
       RegisterFactory<T, T>(factory, isSingleton);
     }
-    
+
+    /// <summary>
+    /// Register a function that is used to create an instance of a type and registers the factory for resolution of a contract.
+    /// </summary>
+    /// <typeparam name="TImplementation">The type that the function creates</typeparam>
+    /// <typeparam name="TContract">The contract type that the function satisfies</typeparam>
+    /// <param name="factory">The factory function</param>
+    /// <param name="isSingleton">If set to <code>true</code> only one instance of the type will be created and then be returned on subsequent tries of resolving the type.</param>
     public void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory, bool isSingleton = false)
     where TImplementation : TContract
     {
@@ -49,17 +97,35 @@ namespace KittyDI
       }
     }
 
+    /// <summary>
+    /// Instantiates all types that have a <see cref="SingletonAttribute"/> attribute with <see cref="SingletonAttribute.Create"/> set to <see cref="SingletonAttribute.CreationRule.CreateDurinServiceInitialization"/> 
+    /// </summary>
+    public void InitializeServices()
+    {
+      foreach (var type in _servicesToInitialize)
+      {
+        var instance = _factories[type]();
+        _factories[type] = () => instance;
+      }
+    }
 
-
+    /// <summary>
+    /// Registers an instance of a type as singleton
+    /// If the type of the instance is resolvd, the same instance is always returned.
+    /// </summary>
+    /// <typeparam name="T">The type of the instance</typeparam>
+    /// <param name="instance">The singleton to register</param>
     public void RegisterInstance<T>(T instance)
     {
       RegisterInstance<T, T>(instance);
     }
 
     /// <summary>
-    /// Registers an instance of an object as singleton
+    /// Registers an instance of an object as singleton to be resolved when a contract is requested
     /// </summary>
-    /// <param name="instance"></param>
+    /// <param name="instance">The instance to register</param>
+    /// <typeparam name="TContract">The type of the contract this instance satisfied</typeparam>
+    /// <typeparam name="TImplementation">The type of the implementation</typeparam>
     public void RegisterInstance<TContract, TImplementation>(TImplementation instance)
     where TImplementation : TContract
     {
@@ -72,18 +138,41 @@ namespace KittyDI
       }
     }
 
+    /// <summary>
+    /// Registers a type to implement a contract
+    /// </summary>
+    /// <typeparam name="TContract">The contract the type satisfies</typeparam>
+    /// <typeparam name="TImplementation">The type that satisfies the contract</typeparam>
+    /// <param name="isSingleton">If set to <code>true</code> only a single instance of the type will be created and returned on subsequent resolutions of the contract</param>
     public void RegisterImplementation<TContract, TImplementation>(bool isSingleton = false)
       where TImplementation : TContract
     {
-      Func<object> factory = () => ResolveFactoryInternal(typeof(TImplementation), new HashSet<Type>(new[] { typeof(TContract) }))();
+      RegisterImplementation(typeof(TContract), typeof(TImplementation), isSingleton);
+    }
+
+    /// <summary>
+    /// Registers a type to implement a contract
+    /// </summary>
+    /// <param name="contractType">The contract the type satisfies</param>
+    /// <param name="implementationType">The type that satisfies the contract</param>
+    /// <param name="isSingleton">If set to <code>true</code> only a single instance of the type will be created and returned on subsequent resolutions of the contract</param>
+    public void RegisterImplementation(Type contractType, Type implementationType, bool isSingleton = false)
+    {
+      if (!contractType.IsAssignableFrom(implementationType))
+      {
+        throw new ArgumentException(
+          $"The implementation type needs to actually derive from or implement the contract type. {implementationType.Name} does not derive from or implement {contractType.Name}.");
+      }
+
+      Func<object> factory = () => ResolveFactoryInternal(implementationType, new HashSet<Type>(new[] { contractType }))();
 
       if (!isSingleton)
       {
-        _factories.Add(typeof(TContract), factory);
+        _factories.Add(contractType, factory);
       }
       else
       {
-        _factories.Add(typeof(TContract), CreateSingletonFactory(factory));
+        _factories.Add(contractType, CreateSingletonFactory(factory));
       }
     }
 
@@ -110,9 +199,25 @@ namespace KittyDI
 
       factory = CreateFactory(requestedType, previousChainedRequests);
 
-      if (requestedType.GetCustomAttribute<SingletonAttribute>() != null)
+      var singletonAttribute = requestedType.GetCustomAttribute<SingletonAttribute>();
+      if (singletonAttribute != null)
       {
-        factory = CreateSingletonFactory(factory);
+        switch (singletonAttribute.Create)
+        {
+          case SingletonAttribute.CreationRule.CreateWhenFirstResolved:
+            factory = CreateSingletonFactory(factory);
+            break;
+          case SingletonAttribute.CreationRule.CreateWhenRegistered:
+            var instance = CreateSingletonFactory(factory)();
+            factory = () => instance;
+            break;
+          case SingletonAttribute.CreationRule.CreateDurinServiceInitialization:
+            factory = CreateSingletonFactory(factory);
+            _servicesToInitialize.Add(requestedType);
+            break;
+          default:
+            throw new ArgumentOutOfRangeException();
+        }
       }
 
       _factories[requestedType] = factory;
@@ -127,7 +232,7 @@ namespace KittyDI
 
       if (resultType.IsInterface)
       {
-        throw new NoInterfaceImplementationGivenException {InterfaceType = resultType};
+        throw new NoInterfaceImplementationGivenException { InterfaceType = resultType };
       }
 
       var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
@@ -155,7 +260,7 @@ namespace KittyDI
       throw new NoSuitableConstructorFoundException(resultType);
     }
 
-    private Func<object> CreateSingletonFactory<T>(Func<T> factory) 
+    private Func<object> CreateSingletonFactory<T>(Func<T> factory)
     {
       var buffer = new Lazy<T>(() =>
       {
@@ -188,7 +293,7 @@ namespace KittyDI
 
     public void Dispose()
     {
-      foreach (var singleton in _disposables) 
+      foreach (var singleton in _disposables)
       {
         singleton.Dispose();
       }

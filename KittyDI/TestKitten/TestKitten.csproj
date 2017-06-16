@@ -68,6 +68,7 @@
     </Otherwise>
   </Choose>
   <ItemGroup>
+    <Compile Include="RegistrarTests.cs" />
     <Compile Include="TestClasses\CircularDependencyA.cs" />
     <Compile Include="TestClasses\CircularDependencyB.cs" />
     <Compile Include="DependencyContainerTests.cs" />

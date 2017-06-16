@@ -1,5 +1,6 @@
 ﻿using FluentAssertions;
 using KittyDI;
+using KittyDI.Attribute;
 using KittyDI.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -78,7 +79,15 @@ namespace TestKitten
     {
       var sut = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, TestImplementation>();
-      sut.Resolve<TestImplementation>().Should().BeOfType<TestImplementation>();
+      sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
+    }
+
+    [TestMethod]
+    public void TypeRedirection2()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation));
+      sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
     }
 
     [TestMethod]
@@ -278,7 +287,7 @@ namespace TestKitten
       instance1.Should().BeSameAs(instance2);
 
       sut.Dispose();
-      ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
+      instance1.IsDisposed.Should().BeTrue();
     }
 
     [TestMethod]
@@ -296,6 +305,108 @@ namespace TestKitten
       ((TestDisposable)instance1).IsDisposed.Should().BeTrue();
     }
 
+    [TestMethod]
+    public void SingletonRegistrationWithImmediateInstantiation()
+    {
+      ImmediatelyInstantiatedSingleton.InstanceCounter = 0;
+
+      var sut = new DependencyContainer();
+      sut.RegisterType<ImmediatelyInstantiatedSingleton>();
+
+      ImmediatelyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.InitializeServices();
+
+      ImmediatelyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.Resolve<ImmediatelyInstantiatedSingleton>();
+
+      ImmediatelyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.Resolve<ImmediatelyInstantiatedSingleton>();
+
+      ImmediatelyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+    }
+
+    [TestMethod]
+    public void SingletonRegistrationWithLazyInstantiation()
+    {
+      LazilyInstantiatedSingleton.InstanceCounter = 0;
+
+      var sut = new DependencyContainer();
+      sut.RegisterType<LazilyInstantiatedSingleton>();
+
+      LazilyInstantiatedSingleton.InstanceCounter.Should().Be(0);
+
+      sut.InitializeServices();
+
+      LazilyInstantiatedSingleton.InstanceCounter.Should().Be(0);
+
+      sut.Resolve<LazilyInstantiatedSingleton>();
+
+      LazilyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.Resolve<LazilyInstantiatedSingleton>();
+
+      LazilyInstantiatedSingleton.InstanceCounter.Should().Be(1);
+    }
+
+    [TestMethod]
+    public void SingletonRegistrationWithExplicitInstantiation()
+    {
+      ExplicitInstantiatedSingleton.InstanceCounter = 0;
+
+      var sut = new DependencyContainer();
+      sut.RegisterType<ExplicitInstantiatedSingleton>();
+
+      ExplicitInstantiatedSingleton.InstanceCounter.Should().Be(0);
+
+      sut.InitializeServices();
+
+      ExplicitInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.Resolve<ExplicitInstantiatedSingleton>();
+
+      ExplicitInstantiatedSingleton.InstanceCounter.Should().Be(1);
+
+      sut.Resolve<ExplicitInstantiatedSingleton>();
+
+      ExplicitInstantiatedSingleton.InstanceCounter.Should().Be(1);
+    }
+
+    [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenRegistered)]
+    public class ImmediatelyInstantiatedSingleton
+    {
+      public static int InstanceCounter = 0;
+
+      public ImmediatelyInstantiatedSingleton()
+      {
+        InstanceCounter++;
+      }
+    }
+
+    [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenFirstResolved)]
+    public class LazilyInstantiatedSingleton
+    {
+      public static int InstanceCounter = 0;
+
+      public LazilyInstantiatedSingleton()
+      {
+        InstanceCounter++;
+      }
+    }
+
+    [Singleton(Create = SingletonAttribute.CreationRule.CreateDurinServiceInitialization)]
+    public class ExplicitInstantiatedSingleton
+    {
+      public static int InstanceCounter = 0;
+
+      public ExplicitInstantiatedSingleton()
+      {
+        InstanceCounter++;
+      }
+    }
+
     /* TODO:
      * DEPENDENCY CONTAINER:
      * - Resolve Func<T>-Constructor-Parameters
@@ -304,10 +415,8 @@ namespace TestKitten
      * - Be able to register more than one factory per type (complain when more than one is registered)
      * - Register one factory as "default" (uses this when multiple are registered, complains as soon as two defaults are registered)
      * - Resolve IEnumerable<T>, IEnumerable<Func<T>> and IEnumerable<Lazy<T>>
-     * 
-     * REGISTRAR:
-     * - Register all instantiable types in an assembly using reflection
-     * - Register those types also as their base classes and interfaces if those have the Contract-Attribute
+     * - Strict mode that throws instead of creating factories on the fly
+     * - Locked mode that throws when an attempt to alter registration is made
      */
   }
 }

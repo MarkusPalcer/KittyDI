@@ -41,6 +41,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Attribute\SingletonAttribute.cs" />
+    <Compile Include="Attribute\ContractAttribute.cs" />
     <Compile Include="Exceptions\CircularDependencyException.cs" />
     <Compile Include="DependencyContainer.cs" />
     <Compile Include="Exceptions\DependencyException.cs" />
@@ -49,6 +50,7 @@
     <Compile Include="Exceptions\NoSuitableConstructorFoundException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Attribute\ProvidingConstructorAttribute.cs" />
+    <Compile Include="Registrar.cs" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
