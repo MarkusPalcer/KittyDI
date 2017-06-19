@@ -1,7 +1,4 @@
-﻿using System;
-using KittyDI.Attribute;
-
-namespace TestKitten.TestClasses
+﻿namespace TestClasses
 {
   [Singleton]
   public class TestSingleton : TestDisposable 

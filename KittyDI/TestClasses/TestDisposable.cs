@@ -1,6 +1,6 @@
 ﻿using System;
 
-namespace TestKitten.TestClasses
+namespace TestClasses
 {
   public class TestDisposable : IDisposable, ITestInterface
   {

@@ -1,4 +1,4 @@
-﻿namespace TestKitten.TestClasses
+﻿namespace TestClasses
 {
   public interface ITestInterface2
   {

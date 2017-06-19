@@ -1,7 +1,6 @@
 using System;
-using KittyDI.Attribute;
 
-namespace TestKitten.TestClasses
+namespace TestClasses
 {
   public class MarkedConstructorType
   {
