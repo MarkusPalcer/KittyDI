@@ -4,7 +4,7 @@ using KittyDI.Attribute;
 using KittyDI.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using TestKitten.TestClasses;
+using TestClasses;
 
 namespace TestKitten
 {

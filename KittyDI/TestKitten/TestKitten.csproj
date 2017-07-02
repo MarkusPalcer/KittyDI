@@ -69,24 +69,17 @@
   </Choose>
   <ItemGroup>
     <Compile Include="RegistrarTests.cs" />
-    <Compile Include="TestClasses\CircularDependencyA.cs" />
-    <Compile Include="TestClasses\CircularDependencyB.cs" />
     <Compile Include="DependencyContainerTests.cs" />
-    <Compile Include="TestClasses\ITestInterface.cs" />
-    <Compile Include="TestClasses\ITestInterface2.cs" />
-    <Compile Include="TestClasses\MarkedConstructorType.cs" />
-    <Compile Include="TestClasses\NestedResolutionType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
-    <Compile Include="TestClasses\TestDisposable.cs" />
-    <Compile Include="TestClasses\TestImplementation.cs" />
-    <Compile Include="TestClasses\TestSingleton.cs" />
-    <Compile Include="TestClasses\TypeWithSingleConstructor.cs" />
-    <Compile Include="TestClasses\TypeWithUnsuitableConstructor.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\KittyDI\KittyDI.csproj">
       <Project>{DC96329C-48D6-4A01-A53B-431A2C5FFD17}</Project>
       <Name>KittyDI</Name>
+    </ProjectReference>
+    <ProjectReference Include="..\TestClasses\TestClasses.csproj">
+      <Project>{66fc1dec-e556-419c-a583-6642f62868bf}</Project>
+      <Name>TestClasses</Name>
     </ProjectReference>
   </ItemGroup>
   <ItemGroup>
