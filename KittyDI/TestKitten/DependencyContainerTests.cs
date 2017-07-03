@@ -44,7 +44,9 @@ namespace TestKitten
 
       sut.ResolveFactory<ITestInterface>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
-      calls.Should().Be(2);
+      sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
+
+      calls.Should().Be(3);
     }
 
     [TestMethod]
@@ -67,6 +69,7 @@ namespace TestKitten
 
       sut.ResolveFactory<ITestInterface>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
+      sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
     }
 
     [TestMethod]
@@ -82,6 +85,7 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, TestImplementation>();
       sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
+      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<TestImplementation>();
     }
 
     [TestMethod]
@@ -90,6 +94,7 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation));
       sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
+      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<TestImplementation>();
     }
 
     [TestMethod]
@@ -116,6 +121,7 @@ namespace TestKitten
       sut.RegisterInstance(2);
       sut.RegisterImplementation<ITestInterface, NestedResolutionType<TypeWithSingleConstructor>>();
       sut.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<TypeWithSingleConstructor>>();
+      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<TypeWithSingleConstructor>>();
     }
 
     [TestMethod]
@@ -168,6 +174,7 @@ namespace TestKitten
       sut.AddContainer(added);
       sut.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       added.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
+      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -182,6 +189,7 @@ namespace TestKitten
       child.AddContainer(sut);
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
+      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -196,6 +204,7 @@ namespace TestKitten
       child.AddContainer(sut);
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
+      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -210,6 +219,7 @@ namespace TestKitten
       child.AddContainer(sut);
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
+      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -269,7 +279,7 @@ namespace TestKitten
       sut.RegisterFactory<ITestInterface>(() => new TestDisposable(), true);
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
 
       instance1.Should().BeSameAs(instance2);
 
@@ -284,7 +294,7 @@ namespace TestKitten
       sut.RegisterImplementation<ITestInterface, TestDisposable>(true);
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
 
       instance1.Should().BeSameAs(instance2);
 
@@ -312,7 +322,7 @@ namespace TestKitten
       sut.RegisterImplementation<ITestInterface, TestSingleton>();
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<ITestInterface>();
+      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
 
       instance1.Should().BeSameAs(instance2);
 
