@@ -89,13 +89,29 @@ namespace KittyDI
     {
       if (!isSingleton)
       {
-        _factories.Add(typeof(TContract), () => factory());
+        AddFactory(typeof(TContract), () => factory());
       }
       else
       {
-        _factories.Add(typeof(TContract), CreateSingletonFactory(factory));
+        AddFactory(typeof(TContract), CreateSingletonFactory(factory));
       }
     }
+
+    private void AddFactory(Type contract, Func<object> factory)
+    {
+      if (!_factories.ContainsKey(contract))
+      {
+        _factories[contract] = factory;
+      }
+      else
+      {
+        _factories[contract] = () =>
+        {
+          throw new MultipleTypesRegisteredException {RequestedType = contract};
+        };
+      }
+    }
+
 
     /// <summary>
     /// Instantiates all types that have a <see cref="SingletonAttribute"/> attribute with <see cref="SingletonAttribute.Create"/> set to <see cref="SingletonAttribute.CreationRule.CreateDurinServiceInitialization"/> 
@@ -168,11 +184,11 @@ namespace KittyDI
 
       if (!isSingleton)
       {
-        _factories.Add(contractType, factory);
+        AddFactory(contractType, factory);
       }
       else
       {
-        _factories.Add(contractType, CreateSingletonFactory(factory));
+        AddFactory(contractType, CreateSingletonFactory(factory));
       }
     }
 

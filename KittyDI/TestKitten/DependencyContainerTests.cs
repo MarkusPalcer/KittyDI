@@ -143,6 +143,19 @@ namespace TestKitten
     }
 
     [TestMethod]
+    public void MultipleImplementationsBeingRegisteredThrowsException()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterImplementation<ITestInterface, TestImplementation>();
+      sut.RegisterImplementation<ITestInterface, TestDisposable>();
+
+      sut.Invoking(x => x.Resolve<ITestInterface>())
+        .ShouldThrow<MultipleTypesRegisteredException>()
+        .Which.RequestedType.Should()
+        .Be(typeof(ITestInterface));
+    }
+
+    [TestMethod]
     public void AddingContainersMakesTheirContentAccessible()
     {
       var sut = new DependencyContainer();
