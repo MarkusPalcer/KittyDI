@@ -21,6 +21,46 @@ namespace KittyDI
       RegisterTypes(container);
 
       RegisterImplementations(container);
+
+      RegisterAbstractImplementations(container);
+    }
+
+    private IEnumerable<Type> GetBaseTypes(Type type)
+    {
+      while (type != null)
+      {
+        type = type.BaseType;
+        if (type != null) yield return type;
+      }
+    }
+
+    private void RegisterAbstractImplementations(IDependencyContainer container)
+    {
+      var typesWithAbstractBaseClasses = this
+        .SelectMany(assembly => assembly.GetTypes())
+        .Where(type => !type.IsGenericTypeDefinition)
+        .Where(type => !type.IsInterface)
+        .Where(type => !type.IsAbstract)
+        .SelectMany(type => GetBaseTypes(type).Where(baseType => baseType.IsAbstract).Select(baseType => Tuple.Create(baseType, type)));
+
+      switch (AbstractImplementationHandling)
+      {
+        case AbstractHandlingTypes.RegisterAllImplementations:
+          break;
+        case AbstractHandlingTypes.RegisterContractsOnly:
+          typesWithAbstractBaseClasses = typesWithAbstractBaseClasses.Where(x => x.Item2.GetCustomAttribute<ContractAttribute>() != null);
+          break;
+        case AbstractHandlingTypes.NoRegistrationOfAbstractImplementations:
+          typesWithAbstractBaseClasses = Enumerable.Empty<Tuple<Type, Type>>();
+          break;
+        default:
+          throw new ArgumentOutOfRangeException();
+      }
+
+      foreach (var tuple in typesWithAbstractBaseClasses)
+      {
+        container.RegisterImplementation(tuple.Item1, tuple.Item2);
+      }
     }
 
     private void RegisterImplementations(IDependencyContainer container)
@@ -128,6 +168,26 @@ namespace KittyDI
     }
 
     public TypeHandlingTypes TypeHandling { get; set; } = TypeHandlingTypes.RegisterContractsOnly;
+
+    public enum AbstractHandlingTypes
+    {
+      /// <summary>
+      /// Registers all types found in the assemblies that inherit from an abstract class
+      /// </summary>
+      RegisterAllImplementations,
+
+      /// <summary>
+      /// Registers all types found in the assemblies that inherit from an abstract class which is marked with the <see cref="ContractAttribute"/> attribute
+      /// </summary>
+      RegisterContractsOnly,
+
+      /// <summary>
+      /// Does not register implementations of abstract classes
+      /// </summary>
+      NoRegistrationOfAbstractImplementations
+    }
+
+    public AbstractHandlingTypes AbstractImplementationHandling { get; set; } = AbstractHandlingTypes.RegisterContractsOnly;
 
     public IDependencyContainer CreateContainer()
     {

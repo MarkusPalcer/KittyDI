@@ -17,7 +17,8 @@ namespace TestKitten
       var sut = new Registrar
       {
         TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
-        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
       };
 
       sut.AddAssemblyOf<ITestInterface>();
@@ -32,7 +33,8 @@ namespace TestKitten
       var sut = new Registrar
       {
         TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
-        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterContractsOnly
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterContractsOnly,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
       };
 
 
@@ -64,7 +66,8 @@ namespace TestKitten
       var sut = new Registrar
       {
         TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
-        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterAllImplementedInterfaces
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterAllImplementedInterfaces,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
       };
 
 
@@ -98,7 +101,8 @@ namespace TestKitten
       var sut = new Registrar
       {
         TypeHandling = Registrar.TypeHandlingTypes.RegisterContractsOnly,
-        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
       };
 
       containerMock.Setup(x => x.RegisterType(typeof(ContractType)));
@@ -115,7 +119,8 @@ namespace TestKitten
       var sut = new Registrar
       {
         TypeHandling = Registrar.TypeHandlingTypes.RegisterAllTypes,
-        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
       };
 
       containerMock.Setup(x => x.RegisterType(typeof(CircularDependencyA)));
@@ -137,5 +142,41 @@ namespace TestKitten
       sut.RegisterToContainer(containerMock.Object);
     }
 
+    [TestMethod]
+    public void RegisterAbstractContractImplementationsAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.RegisterContractsOnly
+      };
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractContract), typeof(ImplementationOfAbstractContract), false));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void RegisterAllAbstractImplementationsAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.RegisterAllImplementations
+      };
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractContract), typeof(ImplementationOfAbstractContract), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractTestImplementation), typeof(ImplementationOfAbstractTestImplementation), false));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
   }
 }
