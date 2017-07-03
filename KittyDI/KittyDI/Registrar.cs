@@ -27,6 +27,9 @@ namespace KittyDI
     {
       var typesWithInterfaces = this
         .SelectMany(assembly => assembly.GetTypes())
+        .Where(type => !type.IsGenericTypeDefinition)
+        .Where(type => !type.IsInterface)
+        .Where(type => !type.IsAbstract)
         .SelectMany(type => type.GetInterfaces().Select(@interface => Tuple.Create(@interface, type)));
 
       switch (InterfaceHandling)
@@ -61,7 +64,7 @@ namespace KittyDI
           break;
         case TypeHandlingTypes.RegisterContractsOnly:
           types = this.SelectMany(x => x.GetTypes())
-                      .Where(x => x.GetCustomAttribute<ContractAttribute>() != null);
+                      .Where(x => x.GetCustomAttribute<ContractAttribute>(false) != null);
           break;
         case TypeHandlingTypes.NoTypeRegistration:
           types = Enumerable.Empty<Type>();
@@ -69,6 +72,12 @@ namespace KittyDI
         default:
           throw new ArgumentOutOfRangeException();
       }
+
+      types = types
+        .Where(type => !type.IsGenericTypeDefinition)
+        .Where(type => !type.IsAbstract)
+        .Where(type => !type.IsInterface)
+        .ToArray();
 
       foreach (var type in types)
       {

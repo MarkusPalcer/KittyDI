@@ -1,15 +1,141 @@
-﻿using Microsoft.VisualStudio.TestTools.UnitTesting;
+﻿using System;
+using KittyDI;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+using Moq;
+using TestClasses;
 
 namespace TestKitten
 {
   [TestClass]
   public class RegistrarTests
   {
+    [TestMethod]
+    public void RegisterNothingAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+      };
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void RegisterContractInterfacesAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterContractsOnly
+      };
 
 
-    /*
-     * - Register all instantiable types in an assembly using reflection
-     * - Register those types also as their base classes and interfaces if those have the Contract-Attribute
-     */ 
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestDisposable), false));
+      /*
+       * 1) This type implements the interface indirectly and is still added
+       * 2) This type has the singleton attribute. Still the registrar will call RegisterImplementation with isSingleton=false
+       *    This is due to the optional parameter being there for a programmer registering a type _without_ singleton attribute as a singleton.
+       *    It is not possible to register a type _with_ singleton attribute as non-singleton.
+       *    Thus the Registrar will ignore this attribute completely.
+       */    
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestSingleton), false));
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(NestedInterfaceImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(ImplementationOfAbstractTestImplementation), false));
+
+      
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void RegisterAllInterfacesAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterAllImplementedInterfaces
+      };
+
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestDisposable), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(IDisposable), typeof(TestDisposable), false));
+      /*
+       * 1) This type implements the interface indirectly and is still added
+       * 2) This type has the singleton attribute. Still the registrar will call RegisterImplementation with isSingleton=false
+       *    This is due to the optional parameter being there for a programmer registering a type _without_ singleton attribute as a singleton.
+       *    It is not possible to register a type _with_ singleton attribute as non-singleton.
+       *    Thus the Registrar will ignore this attribute completely.
+       */
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestSingleton), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(IDisposable), typeof(TestSingleton), false));
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface2), typeof(ImplementationOfTestInterface2), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(NestedInterfaceImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(INestedContract), typeof(NestedInterfaceImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(ImplementationOfAbstractTestImplementation), false));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void RegisterContractTypesAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.RegisterContractsOnly,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+      };
+
+      containerMock.Setup(x => x.RegisterType(typeof(ContractType)));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void RegisterAllTypesAutomatically()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.RegisterAllTypes,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration
+      };
+
+      containerMock.Setup(x => x.RegisterType(typeof(CircularDependencyA)));
+      containerMock.Setup(x => x.RegisterType(typeof(CircularDependencyB)));
+      containerMock.Setup(x => x.RegisterType(typeof(ContractType)));
+      containerMock.Setup(x => x.RegisterType(typeof(ImplementationOfAbstractContract)));
+      containerMock.Setup(x => x.RegisterType(typeof(ImplementationOfAbstractTestImplementation)));
+      containerMock.Setup(x => x.RegisterType(typeof(ImplementationOfTestInterface2)));
+      containerMock.Setup(x => x.RegisterType(typeof(MarkedConstructorType)));
+      containerMock.Setup(x => x.RegisterType(typeof(NestedInterfaceImplementation)));
+      containerMock.Setup(x => x.RegisterType(typeof(SubclassOfContractType)));
+      containerMock.Setup(x => x.RegisterType(typeof(TestDisposable)));
+      containerMock.Setup(x => x.RegisterType(typeof(TestImplementation)));
+      containerMock.Setup(x => x.RegisterType(typeof(TestSingleton)));
+      containerMock.Setup(x => x.RegisterType(typeof(TypeWithSingleConstructor)));
+      containerMock.Setup(x => x.RegisterType(typeof(TypeWithUnsuitableConstructor)));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
   }
 }
