@@ -1,4 +1,6 @@
-﻿using FluentAssertions;
+﻿using System.Collections.Generic;
+using System.Linq;
+using FluentAssertions;
 using KittyDI;
 using KittyDI.Attribute;
 using KittyDI.Exceptions;
@@ -385,6 +387,18 @@ namespace TestKitten
       sut.Resolve<ExplicitInstantiatedSingleton>();
 
       ExplicitInstantiatedSingleton.InstanceCounter.Should().Be(1);
+    }
+
+    [TestMethod]
+    public void MultipleImplementationsCanBeResolved()
+    {
+      var sut = new DependencyContainer();
+      sut.RegisterImplementation<ITestInterface, TestImplementation>();
+      sut.RegisterImplementation<ITestInterface, TestDisposable>();
+
+      var result = sut.Resolve<IEnumerable<ITestInterface>>();
+
+      result.Select(x => x.GetType()).Should().BeEquivalentTo(typeof(TestImplementation), typeof(TestDisposable));
     }
 
     [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenRegistered)]

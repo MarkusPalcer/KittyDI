@@ -16,6 +16,7 @@ namespace KittyDI
     private readonly List<DependencyContainer> _containers = new List<DependencyContainer>();
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
     private readonly List<Type> _servicesToInitialize = new List<Type>();
+    private readonly Dictionary<Type, IEnumerable<Func<object>>> _multipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
 
     /// <summary>
     /// Creates a new dependency injection container
@@ -102,6 +103,7 @@ namespace KittyDI
       if (!_factories.ContainsKey(contract))
       {
         _factories[contract] = factory;
+        _multipleRegistrations[contract] = new[] {factory};
       }
       else
       {
@@ -109,6 +111,7 @@ namespace KittyDI
         {
           throw new MultipleTypesRegisteredException {RequestedType = contract};
         };
+        _multipleRegistrations[contract] = _multipleRegistrations[contract].Concat(new[] {factory});
       }
     }
 
@@ -166,6 +169,14 @@ namespace KittyDI
       RegisterImplementation(typeof(TContract), typeof(TImplementation), isSingleton);
     }
 
+    class Test<TResult>
+    {
+      public IEnumerable<TResult> Work(IEnumerable<Func<object>> factories)
+      {
+        return factories.Select(x => x()).Cast<TResult>();
+      }
+    }
+
     /// <summary>
     /// Registers a type to implement a contract
     /// </summary>
@@ -197,6 +208,19 @@ namespace KittyDI
       if (previousChainedRequests.Contains(requestedType))
       {
         throw new CircularDependencyException();
+      }
+
+      if (requestedType.IsGenericType && (requestedType.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
+      {
+        return () =>
+        {
+          var innerType = requestedType.GetGenericArguments().First();
+          var converterType = typeof(Test<>).MakeGenericType(innerType);
+          var converterMethod = converterType.GetMethod("Work");
+          var converter = Activator.CreateInstance(converterType);
+
+          return converterMethod.Invoke(converter, new object[] {_multipleRegistrations[innerType]});
+        };
       }
 
       Func<object> factory;
