@@ -1,4 +1,4 @@
-# Kitty Dependency Injection
+# Kitty Dependency-Injection
 
 ## What it is 
 
@@ -23,7 +23,7 @@ As soon as the type is resolved for a first time, KittyDI knows how to instantia
 
 ### Resolving a factory for a type
 
-To resolve more than one instance of a type, you can use `ResolveFactory<T>´ to retrieve a `Func<T>` which resolves an instance.
+To resolve more than one instance of a type, you can use `ResolveFactory<T>` to retrieve a `Func<T>` which resolves an instance.
 As soon as the factory is resolved for a first time, KittyDI knows how to instantiate the type and all the recursive dependencies.
 
 ### Requesting a type using an interface as contract
@@ -63,9 +63,9 @@ The short usage instructions are:
   - `RegisterContractsOnly` (default): Types that implement abstract classes which are decorated with the `Contract` attribute will be registered as implementation of the abstract class
   - `RegisterAllImplementations`: Treat all abstract classes as if they have the `Contract` attribute.
 - Set `TypeHandling` to specify when types will be registered (regardless of their implemented interfaces or abstract classes)
- - `NoTypeRegistration`: Don't register types (except for registering an implementation of a contract - see the other two properties)
- - `RegisterContractsOnly` (default): Register all types that have a `Contract` attribute
- - `RegisterAllTypes`: Register every type found in the assemblies
+  - `NoTypeRegistration`: Don't register types (except for registering an implementation of a contract - see the other two properties)
+  - `RegisterContractsOnly` (default): Register all types that have a `Contract` attribute
+  - `RegisterAllTypes`: Register every type found in the assemblies
 - Call either `CreateContainer` to create a new container with the current settings or call `RegisterToContainer` to perform registration of types and implementations to an existing container
 
 If you don't set any of the properties, the default behavior will be to only consider types, interfaces and abstract classes that have been decorated with the `Contract` attribute
