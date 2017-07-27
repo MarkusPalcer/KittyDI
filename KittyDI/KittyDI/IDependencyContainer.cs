@@ -25,13 +25,6 @@ namespace KittyDI
     T Resolve<T>();
 
     /// <summary>
-    /// Returns a function that creates instances of the requested type, resolving dependencies recursively
-    /// </summary>
-    /// <typeparam name="T">The requested type</typeparam>
-    /// <returns>A function that creates instances </returns>
-    Func<T> ResolveFactory<T>();
-
-    /// <summary>
     /// Register a function that is used to create an instance of a type
     /// </summary>
     /// <typeparam name="T">The type that the function creates</typeparam>

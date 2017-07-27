@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using KittyDI;
@@ -25,7 +26,7 @@ namespace TestKitten
         return mock;
       });
 
-      sut.ResolveFactory<TestImplementation>()().Should().Be(mock);
+      sut.Resolve<Func<TestImplementation>>()().Should().Be(mock);
       sut.Resolve<TestImplementation>().Should().Be(mock);
       calls.Should().Be(2);
     }
@@ -42,7 +43,7 @@ namespace TestKitten
         return mock;
       });
 
-      sut.ResolveFactory<ITestInterface>()().Should().Be(mock);
+      sut.Resolve<Func<ITestInterface>>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
       sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
 
@@ -56,7 +57,7 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterInstance(mock);
 
-      sut.ResolveFactory<TestImplementation>()().Should().Be(mock);
+      sut.Resolve<Func<TestImplementation>>()().Should().Be(mock);
       sut.Resolve<TestImplementation>().Should().Be(mock);
     }
 
@@ -67,7 +68,7 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterInstance<ITestInterface, TestImplementation>(mock);
 
-      sut.ResolveFactory<ITestInterface>()().Should().Be(mock);
+      sut.Resolve<Func<ITestInterface>>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
       sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
     }
@@ -424,6 +425,15 @@ namespace TestKitten
       var result = sut.Resolve<IEnumerable<ITestInterface>>();
 
       result.Select(x => x.GetType()).Should().BeEquivalentTo(typeof(TestImplementation), typeof(TestDisposable));
+    }
+
+    [TestMethod]
+    public void FactoriesCanBeResolvedThroughConstructor()
+    {
+      var sut = new DependencyContainer();
+      var result = sut.Resolve<TestClassWithFactoryDependency>();
+      result.Should().NotBeNull();
+      result.TestFactory().Should().NotBeNull();
     }
 
     [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenRegistered)]

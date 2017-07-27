@@ -56,6 +56,7 @@
     <Compile Include="NestedResolutionType.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="SubclassOfContractType.cs" />
+    <Compile Include="TestClassWithFactoryDependency.cs" />
     <Compile Include="TestDisposable.cs" />
     <Compile Include="TestImplementation.cs" />
     <Compile Include="TestSingleton.cs" />

@@ -49,32 +49,31 @@ In this sample KittyDI will use the constructor with two parameters to create an
 
 Another thing that is confusing to a DI framework is circular dependencies.
 Well, luckily you're using KittyDI. PuppyDi for example would now spin around in circles, endlessly chasing its tail.
-But the kitty is more intelligent: It leaves cute little pawprints where it walks while resolving a type, so it recognizes that it runs in circles.
-If it does, it will sit down, meow and throw a `CircularDependencyException`.
+But KittyDI is more intelligent: It leaves cute little pawprints where it walks while resolving a type, so it recognizes that it runs in circles.
+If it does, it will throw a `CircularDependencyException`.
 
 A typical scenario is that DI is used to resolve services which only have a single instance throughout the whole application.
 To tell KittyDI that it should only give birth a single instance, you can use the attribute `Singleton` to decorate a type with.
-Once the kitty sees this attribute, it will yield the same instance on each resolution of the type.
+Once KittyDI encounters this attribute, it will yield the same instance on each resolution of the type.
 
 Sometimes you don't need a single instance of a type, but you need to pass a factory function into a method.
-Since KittyDI stores factory functions in its belly, there's no need to wrap `Resolve<T>` into a lambda. Instead you can use `ResolveFactory<T>` which returns the stored factory function (No hairballs, guaranteed).
+Since KittyDI stores factory functions internally, there's no need to wrap `Resolve<T>` into a lambda. Instead you can directly `Resolve<Func<T>>` which returns the stored factory function.
 
-If a class that is resolved using KittyDI needs to create multiple instances of a type (like a master ViewModel creating detail ViewModels) you need to add IDependencyContainer to the classes constructor parameters. It will then be able to resolve its children.
-This is a temporary solution until I implemented resolving `Func<T>` from within a constructor.
+If a class that is resolved using KittyDI needs to create multiple instances of a type (like a master ViewModel creating detail ViewModels) you can even add `Func<T>` to its constructor parameters.
 
 And resolving IDependencyContainer just leads us to the question on how you can make KittyDI resolve a type by its interface.
-Since an interface (or abstract class even) can't be instantiated, by default the kitty will panic and throw a `NoSuitableConstructorFoundException`.
-But of course there is a way to tell the kitty what to do if it encounters an interface:
+Since an interface (or abstract class even) can't be instantiated, by default KittyDI will throw a `NoSuitableConstructorFoundException`.
+But of course there is a way to tell KittyDI what to do if it encounters an interface:
 
 ## Manually setting up KittyDI
 
-If the automatic resolution is not enough for you, which it most certainly won't be, you can set up your kitty manually.
-You can even only set up manually where the automatic fails and let the kitty do the rest.
+If the automatic resolution is not enough for you, which it most certainly won't be, you can set up KittyDI manually.
+You can even just do the manual set up where the automatic fails and let KittyDI do the rest.
 In the case you mentioned, you simply need to tell KittyDI which implementation of the interface or abstract class to use:
 ```C#
 container.RegisterImplementation<IDependency, DependencyImplementation>();
 ```
-From now on, if the kitty needs to resolve `IDependency` it will instead resolve `DependencyImplementation` and return that.
+From now on, if KittyDI needs to resolve `IDependency` it will instead resolve `DependencyImplementation` and return that.
 You may notice that `RegisterImplementation` has an optional boolean parameter.
 This can be used to tell KittyDI that the type is to be treated as a singleton even though it is not marked as such. 
 Doing so can be helpful to register types from other libraries (where you can't use the `Singleton`-Attribute).
@@ -84,11 +83,11 @@ As you may notice there are more methods starting with `Register` and all of the
 
 If you have your own way of creating an instance of a type, you can use `RegisterFactory` to register a function that returns a specific type.
 `RegisterFactory` also has the optional boolean parameter to mark the returned instance as a singleton.
-When you use `RegisterFactory` you need to manually resolve the dependencies, but you know that you can access the kitty even from within a lambda, right?
+When you use `RegisterFactory` you need to manually resolve the dependencies, but you know that you can access KittyDI even from within a lambda, right?
 `RegisterFactory` has two overloaded versions. One registers the type that the function returns, the other is a combination of `RegisterImplementation` and `RegisterFactory`: It registers a factory function for a type but also tells the kitten to use that function when an interface is being resolved.
 
-If you're working with a library that somehow automatically provides you with an instance to use as a singleton, you can give it to the kitty directly using `RegisterInstance<T>`. 
-The kitty will take good care of the instance like it was one of its own litter and return it each time it is resolved.
+If you're working with a library that somehow automatically provides you with an instance to use as a singleton, you can provide it directly using `RegisterInstance<T>`. 
+KittyDI will store the instance like has just been resolved as a singleton and return it each time it is resolved.
 Similar to `RegisterFactory` there's a version of `RegisterInstance` that registers the instance as implementation of an interface, so it can be resolved using the interface.
 
 The function you might need to use the least (or not at all for now) is `RegisterType<T>`. 

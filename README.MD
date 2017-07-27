@@ -23,7 +23,7 @@ As soon as the type is resolved for a first time, KittyDI knows how to instantia
 
 ### Resolving a factory for a type
 
-To resolve more than one instance of a type, you can use `ResolveFactory<T>` to retrieve a `Func<T>` which resolves an instance.
+To resolve more than one instance of a type, you can resolve a `Func<T>` which is a function that resolves an instance each time it is called.
 As soon as the factory is resolved for a first time, KittyDI knows how to instantiate the type and all the recursive dependencies.
 
 ### Requesting a type using an interface as contract
