@@ -19,11 +19,6 @@ namespace KittyDI
     private readonly List<Type> _servicesToInitialize = new List<Type>();
     internal readonly Dictionary<Type, IEnumerable<Func<object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
 
-    private static readonly IGenericResolver[] GenericResolvers = {
-      new EnumerableResolver(),
-      new FuncResolver(), 
-    };
-
     /// <summary>
     /// Creates a new dependency injection container
     /// </summary>
@@ -189,14 +184,7 @@ namespace KittyDI
 
       Func<object> factory = () => ResolveFactoryInternal(implementationType, new HashSet<Type>(new[] { contractType }))();
 
-      if (!isSingleton)
-      {
-        AddFactory(contractType, factory);
-      }
-      else
-      {
-        AddFactory(contractType, CreateSingletonFactory(factory));
-      }
+      AddFactory(contractType, !isSingleton ? factory : CreateSingletonFactory(factory));
     }
 
     internal Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
@@ -251,7 +239,7 @@ namespace KittyDI
       var genericType = requestedType.GetGenericTypeDefinition();
       var typeParameters = requestedType.GetGenericArguments();
       
-      return GenericResolvers
+      return GenericResolver.GenericResolvers
         .FirstOrDefault(x => x.Matches(genericType, typeParameters))
         ?.Resolve(this, typeParameters, chainedRequests);
     }

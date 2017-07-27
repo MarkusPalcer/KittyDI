@@ -49,6 +49,7 @@
     <Compile Include="Exceptions\NoInterfaceImplementationGivenException.cs" />
     <Compile Include="GenericResolvers\EnumerableResolver.cs" />
     <Compile Include="GenericResolvers\FuncResolver.cs" />
+    <Compile Include="GenericResolvers\GenericResolver.cs" />
     <Compile Include="GenericResolvers\IGenericResolver.cs" />
     <Compile Include="IDependencyContainer.cs" />
     <Compile Include="Exceptions\NoSuitableConstructorFoundException.cs" />

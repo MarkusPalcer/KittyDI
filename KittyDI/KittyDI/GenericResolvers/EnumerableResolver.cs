@@ -4,42 +4,27 @@ using System.Linq;
 
 namespace KittyDI.GenericResolvers
 {
-  public class EnumerableResolver :IGenericResolver
+  public class EnumerableResolver : GenericResolver
   {
-    public Func<object> Resolve(DependencyContainer container, Type[] typeParameters, ISet<Type> previousResolutions)
+    public EnumerableResolver() : base(typeof(InternalResolver<>), typeof(IEnumerable<>))
     {
-      var innerType = typeParameters.Single();
-      var converterType = typeof(FactoryExecutor<>).MakeGenericType(innerType);
-      var converterMethod = converterType.GetMethod("Work");
-      var converter = Activator.CreateInstance(converterType);
-
-      return () => converterMethod.Invoke(converter, new object[] { GetRegistrations(container, innerType) });
     }
 
-    private IEnumerable<Func<object>> GetRegistrations(DependencyContainer container, Type innerType)
+    private class InternalResolver<T>
     {
-      IEnumerable<Func<object>> result;
-      container.MultipleRegistrations.TryGetValue(innerType, out result);
-
-      result = result ?? Enumerable.Empty<Func<object>>();
-
-      return result.Concat(container.Containers.SelectMany(x => GetRegistrations(x, innerType))).ToArray();
-    }
-
-    public bool Matches(Type genericType, Type[] typeParameters)
-    {
-      return genericType == typeof(IEnumerable<>) && typeParameters.Length == 1;
-    }
-
-    /// <summary>
-    /// Helper class to execute a list of factories, transforming it into a list of instances.
-    /// </summary>
-    /// <typeparam name="T">The instance type</typeparam>
-    private class FactoryExecutor<T>
-    {
-      public IEnumerable<T> Work(IEnumerable<Func<object>> factories)
+      public IEnumerable<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
       {
-        return factories.Select(x => x()).Cast<T>();
+        return GetRegistrations(container, typeof(T)).Select(x => x()).Cast<T>();
+      }
+
+      private IEnumerable<Func<object>> GetRegistrations(DependencyContainer container, Type innerType)
+      {
+        IEnumerable<Func<object>> result;
+        container.MultipleRegistrations.TryGetValue(innerType, out result);
+
+        result = result ?? Enumerable.Empty<Func<object>>();
+
+        return result.Concat(container.Containers.SelectMany(x => GetRegistrations(x, innerType))).ToArray();
       }
     }
   }

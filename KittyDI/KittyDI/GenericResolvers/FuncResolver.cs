@@ -4,21 +4,14 @@ using System.Linq;
 
 namespace KittyDI.GenericResolvers
 {
-  public class FuncResolver : IGenericResolver
+  /// <summary>
+  /// Resolves requests for <code>Func&lt;T&gt;</code>
+  /// </summary>
+  public class FuncResolver : GenericResolver
   {
-    public bool Matches(Type genericType, Type[] typeParameters)
+    public FuncResolver() 
+      : base(typeof(InternalResolver<>), typeof(Func<>))
     {
-      return genericType == typeof(Func<>) && typeParameters.Length == 1;
-    }
-
-    public Func<object> Resolve(DependencyContainer container, Type[] typeParameters, ISet<Type> previousResolutions)
-    {
-      var type = typeof(InternalResolver<>)
-        .MakeGenericType(typeParameters);
-      var method = type
-        .GetMethod("Resolve");
-      var instance = Activator.CreateInstance(type);
-      return () => method.Invoke(instance, new object[] {container, previousResolutions});
     }
 
     private class InternalResolver<T>
