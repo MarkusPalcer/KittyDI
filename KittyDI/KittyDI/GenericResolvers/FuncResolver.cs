@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 
 namespace KittyDI.GenericResolvers
 {
@@ -14,7 +13,7 @@ namespace KittyDI.GenericResolvers
     {
     }
 
-    private class InternalResolver<T>
+    private class InternalResolver<T> : IResolver<Func<T>>
     {
       public Func<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
       {

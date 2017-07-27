@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.Linq;
 using FluentAssertions;
 using KittyDI;
-using KittyDI.Attribute;
 using KittyDI.Exceptions;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -436,47 +435,23 @@ namespace TestKitten
       result.TestFactory().Should().NotBeNull();
     }
 
-    [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenRegistered)]
-    public class ImmediatelyInstantiatedSingleton
+    [TestMethod]
+    public void GenericLazyCanBeResolved()
     {
-      public static int InstanceCounter = 0;
+      var sut = new DependencyContainer();
+      var instance = new Mock<ITestInterface>().Object;
+      sut.RegisterInstance(instance);
+      var result = sut.Resolve<Lazy<ITestInterface>>();
 
-      public ImmediatelyInstantiatedSingleton()
-      {
-        InstanceCounter++;
-      }
-    }
-
-    [Singleton(Create = SingletonAttribute.CreationRule.CreateWhenFirstResolved)]
-    public class LazilyInstantiatedSingleton
-    {
-      public static int InstanceCounter = 0;
-
-      public LazilyInstantiatedSingleton()
-      {
-        InstanceCounter++;
-      }
-    }
-
-    [Singleton(Create = SingletonAttribute.CreationRule.CreateDurinServiceInitialization)]
-    public class ExplicitInstantiatedSingleton
-    {
-      public static int InstanceCounter = 0;
-
-      public ExplicitInstantiatedSingleton()
-      {
-        InstanceCounter++;
-      }
+      result.IsValueCreated.Should().BeFalse();
+      result.Value.Should().Be(instance);
+      result.IsValueCreated.Should().BeTrue();
     }
 
     /* TODO:
      * DEPENDENCY CONTAINER:
-     * - Resolve Func<T>-Constructor-Parameters
-     * - Resolve Lazy<T>-Constructor-Parameters (using Func<T>-Resolution)
      * - Test combination: Type resolves Non-Singleton and Container, adds instance to container and resolves new object - instance is now treated as singleton within the nested scope but not within the outer scope
-     * - Be able to register more than one factory per type (complain when more than one is registered)
      * - Register one factory as "default" (uses this when multiple are registered, complains as soon as two defaults are registered)
-     * - Resolve IEnumerable<T>, IEnumerable<Func<T>> and IEnumerable<Lazy<T>>
      * - Strict mode that throws instead of creating factories on the fly
      * - Locked mode that throws when an attempt to alter registration is made
      */

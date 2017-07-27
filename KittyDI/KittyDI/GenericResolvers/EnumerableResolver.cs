@@ -10,7 +10,7 @@ namespace KittyDI.GenericResolvers
     {
     }
 
-    private class InternalResolver<T>
+    private class InternalResolver<T> : IResolver<IEnumerable<T>>
     {
       public IEnumerable<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
       {

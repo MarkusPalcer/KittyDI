@@ -45,12 +45,15 @@
     <Compile Include="CircularDependencyA.cs" />
     <Compile Include="CircularDependencyB.cs" />
     <Compile Include="ContractType.cs" />
+    <Compile Include="ExplicitInstantiatedSingleton.cs" />
+    <Compile Include="ImmediatelyInstantiatedSingleton.cs" />
     <Compile Include="ImplementationOfAbstractContract.cs" />
     <Compile Include="ImplementationOfAbstractTestImplementation.cs" />
     <Compile Include="ImplementationOfTestInterface2.cs" />
     <Compile Include="INestedContract.cs" />
     <Compile Include="ITestInterface.cs" />
     <Compile Include="ITestInterface2.cs" />
+    <Compile Include="LazilyInstantiatedSingleton.cs" />
     <Compile Include="MarkedConstructorType.cs" />
     <Compile Include="NestedInterfaceImplementation.cs" />
     <Compile Include="NestedResolutionType.cs" />
