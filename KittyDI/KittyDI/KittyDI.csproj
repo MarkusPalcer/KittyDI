@@ -42,8 +42,10 @@
   <ItemGroup>
     <Compile Include="Attribute\SingletonAttribute.cs" />
     <Compile Include="Attribute\ContractAttribute.cs" />
+    <Compile Include="DependencyContainerMode.cs" />
     <Compile Include="Exceptions\CircularDependencyException.cs" />
     <Compile Include="DependencyContainer.cs" />
+    <Compile Include="Exceptions\ContainerLockedException.cs" />
     <Compile Include="Exceptions\DependencyException.cs" />
     <Compile Include="Exceptions\MultipleTypesRegisteredException.cs" />
     <Compile Include="Exceptions\NoInterfaceImplementationGivenException.cs" />

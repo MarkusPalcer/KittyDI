@@ -18,6 +18,7 @@ namespace KittyDI
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
     private readonly List<Type> _servicesToInitialize = new List<Type>();
     internal readonly Dictionary<Type, IEnumerable<Func<object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
+    private DependencyContainerMode _mode = DependencyContainerMode.Regular;
 
     /// <summary>
     /// Creates a new dependency injection container
@@ -26,6 +27,20 @@ namespace KittyDI
     {
       RegisterFactory(CreateChild);
       RegisterImplementation<IDependencyContainer, DependencyContainer>();
+    }
+
+    public DependencyContainerMode Mode
+    {
+      get { return _mode; }
+      set
+      {
+        if (_mode == DependencyContainerMode.Locked)
+        {
+          throw new InvalidOperationException("Locked mode can not be changed");
+        }
+
+        _mode = value;
+      }
     }
 
     /// <summary>
@@ -43,7 +58,12 @@ namespace KittyDI
     /// <param name="registeredType">The type to register</param>
     public void RegisterType(Type registeredType)
     {
-      ResolveFactoryInternal(registeredType, new HashSet<Type>());
+      if (Mode == DependencyContainerMode.Locked)
+      {
+        throw new ContainerLockedException();
+      }
+
+      CreateFactory(registeredType, new HashSet<Type> { registeredType });
     }
 
     /// <summary>
@@ -77,6 +97,11 @@ namespace KittyDI
     public void RegisterFactory<TContract, TImplementation>(Func<TImplementation> factory, bool isSingleton = false)
     where TImplementation : TContract
     {
+      if (Mode == DependencyContainerMode.Locked)
+      {
+        throw new ContainerLockedException();
+      }
+
       if (!isSingleton)
       {
         AddFactory(typeof(TContract), () => factory());
@@ -172,6 +197,13 @@ namespace KittyDI
           $"The implementation type needs to actually derive from or implement the contract type. {implementationType.Name} does not derive from or implement {contractType.Name}.");
       }
 
+      if (Mode == DependencyContainerMode.Locked)
+      {
+        throw new ContainerLockedException();
+      }
+
+      RegisterType(implementationType);
+
       Func<object> factory = () => ResolveFactoryInternal(implementationType, new HashSet<Type>(new[] { contractType }))();
 
       AddFactory(contractType, !isSingleton ? factory : CreateSingletonFactory(factory));
@@ -195,7 +227,18 @@ namespace KittyDI
 
     private Func<object> ResolveFactoryForUnknownType(Type requestedType, ISet<Type> chainedRequests)
     {
-      var factory = CreateFactory(requestedType, chainedRequests);
+      if (_mode != DependencyContainerMode.Regular)
+      {
+        throw new ContainerLockedException();
+      }
+
+      CreateFactory(requestedType, chainedRequests);
+      return _factories[requestedType];
+    }
+
+    private void CreateFactory(Type requestedType, ISet<Type> chainedRequests)
+    {
+      var factory = FindConstructor(requestedType, chainedRequests);
 
       var singletonAttribute = requestedType.GetCustomAttribute<SingletonAttribute>();
       if (singletonAttribute != null)
@@ -219,7 +262,6 @@ namespace KittyDI
       }
 
       _factories[requestedType] = factory;
-      return factory;
     }
 
     private Func<object> ResolveFactoryForGenericType(Type requestedType, ISet<Type> chainedRequests)
@@ -254,7 +296,7 @@ namespace KittyDI
       return null;
     }
 
-    private Func<object> CreateFactory(Type resultType, ISet<Type> chainedRequests)
+    private Func<object> FindConstructor(Type resultType, ISet<Type> chainedRequests)
     {
       var constructors = resultType.GetConstructors();
 
@@ -262,7 +304,6 @@ namespace KittyDI
       {
         throw new NoInterfaceImplementationGivenException { InterfaceType = resultType };
       }
-
 
       var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
       if (constructor != null)
@@ -281,8 +322,11 @@ namespace KittyDI
 
       if (constructor != null)
       {
-        var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, chainedRequests)).ToArray();
-        return () => constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
+        return () =>
+        {
+          var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, chainedRequests)).ToArray();
+          return constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
+        };
       }
 
       throw new NoSuitableConstructorFoundException(resultType);

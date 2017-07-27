@@ -448,12 +448,51 @@ namespace TestKitten
       result.IsValueCreated.Should().BeTrue();
     }
 
-    /* TODO:
-     * DEPENDENCY CONTAINER:
-     * - Test combination: Type resolves Non-Singleton and Container, adds instance to container and resolves new object - instance is now treated as singleton within the nested scope but not within the outer scope
-     * - Register one factory as "default" (uses this when multiple are registered, complains as soon as two defaults are registered)
-     * - Strict mode that throws instead of creating factories on the fly
-     * - Locked mode that throws when an attempt to alter registration is made
-     */
+    [TestMethod]
+    public void InStrictModeOnlyRegisteredTypesCanBeResolved()
+    {
+      var sut = new DependencyContainer();
+
+      sut.RegisterType<TestImplementation>();
+      sut.Mode = DependencyContainerMode.Strict;
+
+      sut.Invoking(x => x.Resolve<TestImplementation>()).ShouldNotThrow();
+      sut.Invoking(x => x.Resolve<TestDisposable>()).ShouldThrow<ContainerLockedException>();
+
+      sut.RegisterType<TestDisposable>();
+      sut.Invoking(x => x.Resolve<TestDisposable>()).ShouldNotThrow();
+    }
+
+    [TestMethod]
+    public void InLockedModeRegistrationIsNotPossible()
+    {
+      var sut = new DependencyContainer();
+
+      sut.RegisterType<TestImplementation>();
+      sut.Mode = DependencyContainerMode.Locked;
+
+      sut.Invoking(x => x.Resolve<TestImplementation>()).ShouldNotThrow();
+      sut.Invoking(x => x.Resolve<TestDisposable>()).ShouldThrow<ContainerLockedException>();
+      sut.Invoking(x => x.RegisterType<TestDisposable>()).ShouldThrow<ContainerLockedException>();
+    }
+
+    [TestMethod]
+    public void LeavingLockedModeIsForbidden()
+    {
+      var sut = new DependencyContainer();
+
+      sut.Mode = DependencyContainerMode.Locked;
+      sut.Invoking(x => x.Mode = DependencyContainerMode.Regular).ShouldThrow<InvalidOperationException>();
+      sut.Invoking(x => x.Mode = DependencyContainerMode.Strict).ShouldThrow<InvalidOperationException>();
+    }
+
+    [TestMethod]
+    public void LeavingStrictModeIsAllowed()
+    {
+      var sut = new DependencyContainer();
+
+      sut.Mode = DependencyContainerMode.Strict;
+      sut.Invoking(x => x.Mode = DependencyContainerMode.Regular).ShouldNotThrow();
+    }
   }
 }
