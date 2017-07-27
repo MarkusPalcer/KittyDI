@@ -183,13 +183,28 @@ namespace TestKitten
       var sut = new DependencyContainer();
       var child = sut.CreateChild();
 
+      sut.RegisterImplementation<ITestInterface2, ImplementationOfTestInterface2>();
       child.RegisterImplementation<ITestInterface, NestedResolutionType<ITestInterface2>>();
-      sut.RegisterInstance(new Mock<ITestInterface2>().Object);
 
-      child.AddContainer(sut);
-      child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
+      child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
+    }
+
+    [TestMethod]
+    public void ChildContainersExtendEnumerables()
+    {
+      var sut = new DependencyContainer();
+      var child = sut.CreateChild();
+
+      var instance1 = new Mock<ITestInterface>().Object;
+      var instance2 = new Mock<ITestInterface>().Object;
+
+      sut.RegisterInstance(instance1);
+      child.RegisterInstance(instance2);
+
+      var result = child.Resolve<IEnumerable<ITestInterface>>();
+      result.Should().BeEquivalentTo(instance1, instance2);
     }
 
     [TestMethod]

@@ -4,6 +4,7 @@ using System.Linq;
 using System.Reflection;
 using KittyDI.Attribute;
 using KittyDI.Exceptions;
+using KittyDI.GenericResolvers;
 
 namespace KittyDI
 {
@@ -13,10 +14,15 @@ namespace KittyDI
   public class DependencyContainer : IDependencyContainer
   {
     private readonly Dictionary<Type, Func<object>> _factories = new Dictionary<Type, Func<object>>();
-    private readonly List<DependencyContainer> _containers = new List<DependencyContainer>();
+    internal readonly List<DependencyContainer> Containers = new List<DependencyContainer>();
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
     private readonly List<Type> _servicesToInitialize = new List<Type>();
-    private readonly Dictionary<Type, IEnumerable<Func<object>>> _multipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
+    internal readonly Dictionary<Type, IEnumerable<Func<object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
+
+    private static readonly IGenericResolver[] GenericResolvers = {
+      new EnumerableResolver(),
+      new FuncResolver(), 
+    };
 
     /// <summary>
     /// Creates a new dependency injection container
@@ -52,7 +58,7 @@ namespace KittyDI
     /// <returns>An instance of the requestsed type</returns>
     public T Resolve<T>()
     {
-      return ResolveFactory<T>()();
+      return (T) ResolveFactoryInternal(typeof(T), new HashSet<Type>())();
     }
 
     /// <summary>
@@ -62,9 +68,7 @@ namespace KittyDI
     /// <returns>A function that creates instances </returns>
     public Func<T> ResolveFactory<T>()
     {
-      var factory = ResolveFactoryInternal(typeof(T), new HashSet<Type>());
-
-      return () => (T)factory();
+      return Resolve<Func<T>>();
     }
 
     /// <summary>
@@ -103,7 +107,7 @@ namespace KittyDI
       if (!_factories.ContainsKey(contract))
       {
         _factories[contract] = factory;
-        _multipleRegistrations[contract] = new[] {factory};
+        MultipleRegistrations[contract] = new[] {factory};
       }
       else
       {
@@ -111,7 +115,7 @@ namespace KittyDI
         {
           throw new MultipleTypesRegisteredException {RequestedType = contract};
         };
-        _multipleRegistrations[contract] = _multipleRegistrations[contract].Concat(new[] {factory});
+        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] {factory});
       }
     }
 
@@ -169,14 +173,6 @@ namespace KittyDI
       RegisterImplementation(typeof(TContract), typeof(TImplementation), isSingleton);
     }
 
-    class Test<TResult>
-    {
-      public IEnumerable<TResult> Work(IEnumerable<Func<object>> factories)
-      {
-        return factories.Select(x => x()).Cast<TResult>();
-      }
-    }
-
     /// <summary>
     /// Registers a type to implement a contract
     /// </summary>
@@ -203,41 +199,25 @@ namespace KittyDI
       }
     }
 
-    private Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
+    internal Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
     {
       if (previousChainedRequests.Contains(requestedType))
       {
         throw new CircularDependencyException();
       }
 
-      if (requestedType.IsGenericType && (requestedType.GetGenericTypeDefinition() == typeof(IEnumerable<>)))
-      {
-        return () =>
-        {
-          var innerType = requestedType.GetGenericArguments().First();
-          var converterType = typeof(Test<>).MakeGenericType(innerType);
-          var converterMethod = converterType.GetMethod("Work");
-          var converter = Activator.CreateInstance(converterType);
+      var chainedRequests = new HashSet<Type>(previousChainedRequests.Concat(new[] { requestedType }));
 
-          return converterMethod.Invoke(converter, new object[] {_multipleRegistrations[innerType]});
-        };
-      }
+      var factory = FindExistingFactory(requestedType) 
+        ??  ResolveFactoryForGenericType(requestedType, chainedRequests)
+        ??  ResolveFactoryForUnknownType(requestedType, chainedRequests);
+        
+      return factory;
+    } 
 
-      Func<object> factory;
-      if (_factories.TryGetValue(requestedType, out factory))
-      {
-        return factory;
-      }
-
-      foreach (var container in _containers)
-      {
-        if (container._factories.TryGetValue(requestedType, out factory))
-        {
-          return factory;
-        }
-      }
-
-      factory = CreateFactory(requestedType, previousChainedRequests);
+    private Func<object> ResolveFactoryForUnknownType(Type requestedType, ISet<Type> chainedRequests)
+    {
+      var factory = CreateFactory(requestedType, chainedRequests);
 
       var singletonAttribute = requestedType.GetCustomAttribute<SingletonAttribute>();
       if (singletonAttribute != null)
@@ -261,12 +241,42 @@ namespace KittyDI
       }
 
       _factories[requestedType] = factory;
-
-
       return factory;
     }
 
-    private Func<object> CreateFactory(Type resultType, ISet<Type> previousChainedRequests)
+    private Func<object> ResolveFactoryForGenericType(Type requestedType, ISet<Type> chainedRequests)
+    {
+      if (!requestedType.IsGenericType) return null;
+
+      var genericType = requestedType.GetGenericTypeDefinition();
+      var typeParameters = requestedType.GetGenericArguments();
+      
+      return GenericResolvers
+        .FirstOrDefault(x => x.Matches(genericType, typeParameters))
+        ?.Resolve(this, typeParameters, chainedRequests);
+    }
+
+    private Func<object> FindExistingFactory(Type requestedType)
+    {
+      Func<object> factory;
+      if (_factories.TryGetValue(requestedType, out factory))
+      {
+        return factory;
+      }
+
+      foreach (var container in Containers)
+      {
+        factory = container.FindExistingFactory(requestedType);
+        if (factory != null)
+        {
+          return factory;
+        }
+      }
+
+      return null;
+    }
+
+    private Func<object> CreateFactory(Type resultType, ISet<Type> chainedRequests)
     {
       var constructors = resultType.GetConstructors();
 
@@ -274,6 +284,7 @@ namespace KittyDI
       {
         throw new NoInterfaceImplementationGivenException { InterfaceType = resultType };
       }
+
 
       var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
       if (constructor != null)
@@ -292,7 +303,6 @@ namespace KittyDI
 
       if (constructor != null)
       {
-        var chainedRequests = new HashSet<Type>(previousChainedRequests.Concat(new[] { resultType }));
         var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, chainedRequests)).ToArray();
         return () => constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
       }
@@ -320,7 +330,7 @@ namespace KittyDI
 
     public void AddContainer(DependencyContainer addedContainer)
     {
-      _containers.Add(addedContainer);
+      Containers.Add(addedContainer);
     }
 
     public DependencyContainer CreateChild()
