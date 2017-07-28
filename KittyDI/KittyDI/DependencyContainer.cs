@@ -350,11 +350,18 @@ namespace KittyDI
       return newFactory;
     }
 
+    /// <summary>
+    /// Adds the given container to this, thus giving this container and its content access to the content of the added container
+    /// </summary>
+    /// <param name="addedContainer">The container to add</param>
     public void AddContainer(DependencyContainer addedContainer)
     {
       Containers.Add(addedContainer);
     }
 
+    /// <summary>
+    /// Creates a child container which can access its parents content but not vice versa
+    /// </summary>
     public DependencyContainer CreateChild()
     {
       var child = new DependencyContainer();
