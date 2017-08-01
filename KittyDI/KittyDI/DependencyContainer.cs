@@ -8,6 +8,22 @@ using KittyDI.GenericResolvers;
 
 namespace KittyDI
 {
+  internal class ResolutionInformation
+  {
+    internal Stack<Type> ResolutionChain { get; } = new Stack<Type>();
+
+    internal ResolutionInformation Clone()
+    {
+      var result = new ResolutionInformation();
+      foreach (var type in ResolutionChain)
+      {
+        result.ResolutionChain.Push(type);
+      }
+
+      return result;
+    }
+  }
+
   /// <summary>
   /// A lightweight dependency injection container
   /// </summary>
@@ -63,7 +79,11 @@ namespace KittyDI
         throw new ContainerLockedException();
       }
 
-      CreateFactory(registeredType, new HashSet<Type> { registeredType });
+      // Act as if the contract has already been resolved
+      var resolutionInformation = new ResolutionInformation();
+      resolutionInformation.ResolutionChain.Push(registeredType);
+
+      CreateFactory(registeredType, resolutionInformation);
     }
 
     /// <summary>
@@ -73,7 +93,7 @@ namespace KittyDI
     /// <returns>An instance of the requestsed type</returns>
     public T Resolve<T>()
     {
-      return (T) ResolveFactoryInternal(typeof(T), new HashSet<Type>())();
+      return (T) ResolveFactoryInternal(typeof(T), new ResolutionInformation())();
     }
 
     /// <summary>
@@ -204,41 +224,47 @@ namespace KittyDI
 
       RegisterType(implementationType);
 
-      Func<object> factory = () => ResolveFactoryInternal(implementationType, new HashSet<Type>(new[] { contractType }))();
+      // Act as if the contract has already been resolved
+      var resolutionInformation = new ResolutionInformation();
+      resolutionInformation.ResolutionChain.Push(contractType);
+
+      Func<object> factory = () => ResolveFactoryInternal(implementationType, resolutionInformation)();
 
       AddFactory(contractType, !isSingleton ? factory : CreateSingletonFactory(factory));
     }
 
-    internal Func<object> ResolveFactoryInternal(Type requestedType, ISet<Type> previousChainedRequests)
+    internal Func<object> ResolveFactoryInternal(Type requestedType, ResolutionInformation resolutionInformation)
     {
-      if (previousChainedRequests.Contains(requestedType))
+      if (resolutionInformation.ResolutionChain.Contains(requestedType))
       {
         throw new CircularDependencyException();
       }
 
-      var chainedRequests = new HashSet<Type>(previousChainedRequests.Concat(new[] { requestedType }));
+      resolutionInformation.ResolutionChain.Push(requestedType);
 
       var factory = FindExistingFactory(requestedType) 
-        ??  ResolveFactoryForGenericType(requestedType, chainedRequests)
-        ??  ResolveFactoryForUnknownType(requestedType, chainedRequests);
+        ??  ResolveFactoryForGenericType(requestedType, resolutionInformation)
+        ??  ResolveFactoryForUnknownType(requestedType, resolutionInformation);
+
+      resolutionInformation.ResolutionChain.Pop();
         
       return factory;
     } 
 
-    private Func<object> ResolveFactoryForUnknownType(Type requestedType, ISet<Type> chainedRequests)
+    private Func<object> ResolveFactoryForUnknownType(Type requestedType, ResolutionInformation resolutionInformation)
     {
       if (_mode != DependencyContainerMode.Regular)
       {
         throw new ContainerLockedException();
       }
 
-      CreateFactory(requestedType, chainedRequests);
+      CreateFactory(requestedType, resolutionInformation);
       return _factories[requestedType];
     }
 
-    private void CreateFactory(Type requestedType, ISet<Type> chainedRequests)
+    private void CreateFactory(Type requestedType, ResolutionInformation resolutionInformation)
     {
-      var factory = FindConstructor(requestedType, chainedRequests);
+      var factory = FindConstructor(requestedType, resolutionInformation);
 
       var singletonAttribute = requestedType.GetCustomAttribute<SingletonAttribute>();
       if (singletonAttribute != null)
@@ -264,7 +290,7 @@ namespace KittyDI
       _factories[requestedType] = factory;
     }
 
-    private Func<object> ResolveFactoryForGenericType(Type requestedType, ISet<Type> chainedRequests)
+    private Func<object> ResolveFactoryForGenericType(Type requestedType, ResolutionInformation resolutionInformation)
     {
       if (!requestedType.IsGenericType) return null;
 
@@ -273,7 +299,7 @@ namespace KittyDI
       
       return GenericResolver.GenericResolvers
         .FirstOrDefault(x => x.Matches(genericType, typeParameters))
-        ?.Resolve(this, typeParameters, chainedRequests);
+        ?.Resolve(this, typeParameters, resolutionInformation);
     }
 
     private Func<object> FindExistingFactory(Type requestedType)
@@ -296,7 +322,7 @@ namespace KittyDI
       return null;
     }
 
-    private Func<object> FindConstructor(Type resultType, ISet<Type> chainedRequests)
+    private Func<object> FindConstructor(Type resultType, ResolutionInformation resolutionInformation)
     {
       var constructors = resultType.GetConstructors();
 
@@ -311,25 +337,18 @@ namespace KittyDI
         return () => constructor.Invoke(new object[] { });
       }
 
-      if (constructors.Length == 1)
-      {
-        constructor = constructors.First();
-      }
-      else
-      {
-        constructor = constructors.SingleOrDefault(x => x.GetCustomAttribute<ProvidingConstructorAttribute>() != null);
-      }
+      constructor = constructors.Length == 1 
+        ? constructors.First() 
+        : constructors.SingleOrDefault(x => x.GetCustomAttribute<ProvidingConstructorAttribute>() != null);
 
-      if (constructor != null)
-      {
-        return () =>
-        {
-          var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, chainedRequests)).ToArray();
-          return constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
-        };
-      }
+      if (constructor == null) throw new NoSuitableConstructorFoundException(resultType);
 
-      throw new NoSuitableConstructorFoundException(resultType);
+      var information = resolutionInformation.Clone();
+      return () =>
+      {
+        var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, information)).ToArray();
+        return constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
+      };
     }
 
     private Func<object> CreateSingletonFactory<T>(Func<T> factory)

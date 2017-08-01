@@ -4,7 +4,7 @@ using System.Linq;
 
 namespace KittyDI.GenericResolvers
 {
-  public class EnumerableResolver : GenericResolver
+  internal class EnumerableResolver : GenericResolver
   {
     public EnumerableResolver() : base(typeof(InternalResolver<>), typeof(IEnumerable<>))
     {
@@ -12,7 +12,7 @@ namespace KittyDI.GenericResolvers
 
     private class InternalResolver<T> : IResolver<IEnumerable<T>>
     {
-      public IEnumerable<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
+      public IEnumerable<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
       {
         return GetRegistrations(container, typeof(T)).Select(x => x()).Cast<T>();
       }

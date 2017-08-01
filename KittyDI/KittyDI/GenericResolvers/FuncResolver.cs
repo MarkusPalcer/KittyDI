@@ -1,12 +1,11 @@
 using System;
-using System.Collections.Generic;
 
 namespace KittyDI.GenericResolvers
 {
   /// <summary>
   /// Resolves requests for <code>Func&lt;T&gt;</code>
   /// </summary>
-  public class FuncResolver : GenericResolver
+  internal class FuncResolver : GenericResolver
   {
     public FuncResolver() 
       : base(typeof(InternalResolver<>), typeof(Func<>))
@@ -15,9 +14,9 @@ namespace KittyDI.GenericResolvers
 
     private class InternalResolver<T> : IResolver<Func<T>>
     {
-      public Func<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
+      public Func<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
       {
-        var factory = container.ResolveFactoryInternal(typeof(T), previousResolutions);
+        var factory = container.ResolveFactoryInternal(typeof(T), resolutionInformation);
         return () => (T) factory();
       }
     }

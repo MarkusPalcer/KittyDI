@@ -3,11 +3,11 @@ using System.Collections.Generic;
 
 namespace KittyDI.GenericResolvers
 {
-  public class LazyResolver : GenericResolver
+  internal class LazyResolver : GenericResolver
   {
     private class Resolver<T> : IResolver<Lazy<T>>
     {
-      public Lazy<T> Resolve(DependencyContainer container, ISet<Type> previousResolutions)
+      public Lazy<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
       {
         return new Lazy<T>(container.Resolve<Func<T>>());
       }

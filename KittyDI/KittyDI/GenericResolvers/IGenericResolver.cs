@@ -6,7 +6,7 @@ namespace KittyDI.GenericResolvers
   /// <summary>
   /// Interface for resolvers of generic types
   /// </summary>
-  public interface IGenericResolver
+  internal interface IGenericResolver
   {
     /// <summary>
     /// Returns a value that determines if the resolver is able to resolve the requested type.
@@ -26,6 +26,6 @@ namespace KittyDI.GenericResolvers
     /// It is used for circular dependency detection.
     /// </param>
     /// <returns>A factory that returns the requested generic type</returns>
-    Func<object> Resolve(DependencyContainer container, Type[] typeParameters, ISet<Type> previousResolutions);
+    Func<object> Resolve(DependencyContainer container, Type[] typeParameters, ResolutionInformation previousResolutions);
   }
 }
