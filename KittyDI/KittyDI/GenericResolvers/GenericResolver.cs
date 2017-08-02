@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using KittyDI.Exceptions;
 
 namespace KittyDI.GenericResolvers
 {
@@ -36,8 +37,8 @@ namespace KittyDI.GenericResolvers
 
     protected GenericResolver(Type internalResolverType, Type resolvedType)
     {
-      this._internalResolverType = internalResolverType;
-      this._resolvedType = resolvedType;
+      _internalResolverType = internalResolverType;
+      _resolvedType = resolvedType;
     }
 
     public bool Matches(Type genericType, Type[] typeParameters)
@@ -45,14 +46,30 @@ namespace KittyDI.GenericResolvers
       return genericType == _resolvedType && typeParameters.Length == _resolvedType.GetGenericArguments().Length;
     }
 
-    Func<object> IGenericResolver.Resolve(Type[] typeParameters, ResolutionInformation resolutionInformation)
+    Func<ResolutionInformation, object> IGenericResolver.Resolve(Type[] typeParameters)
     {
       var type = _internalResolverType
         .MakeGenericType(typeParameters);
+      var resultType = _resolvedType.MakeGenericType(typeParameters);
+
       var method = type
         .GetMethod("Resolve");
       var instance = Activator.CreateInstance(type);
-      return () => method.Invoke(instance, new object[] { resolutionInformation });
+      return resolutionInformation =>
+      {
+        if (resolutionInformation.ResolutionChain.Contains(resultType))
+        {
+          throw new CircularDependencyException();
+        }
+
+        resolutionInformation.ResolutionChain.Push(resultType);
+
+        var result = method.Invoke(instance, new object[] { resolutionInformation });
+
+        resolutionInformation.ResolutionChain.Pop();
+
+        return result;
+      };
     }
   }
 }

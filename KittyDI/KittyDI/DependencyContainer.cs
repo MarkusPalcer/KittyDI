@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using KittyDI.Attribute;
@@ -17,18 +18,6 @@ namespace KittyDI
 
     internal Stack<Type> ResolutionChain { get; } = new Stack<Type>();
     internal DependencyContainer Container { get;  }
-
-    internal ResolutionInformation Clone()
-    {
-      var result = new ResolutionInformation(Container);
-
-      foreach (var type in ResolutionChain)
-      {
-        result.ResolutionChain.Push(type);
-      }
-
-      return result;
-    }
   }
 
   /// <summary>
@@ -36,11 +25,11 @@ namespace KittyDI
   /// </summary>
   public class DependencyContainer : IDependencyContainer
   {
-    private readonly Dictionary<Type, Func<object>> _factories = new Dictionary<Type, Func<object>>();
+    private readonly Dictionary<Type, Func<ResolutionInformation, object>> _factories = new Dictionary<Type, Func<ResolutionInformation, object>>();
     internal readonly List<DependencyContainer> Containers = new List<DependencyContainer>();
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
     private readonly List<Type> _servicesToInitialize = new List<Type>();
-    internal readonly Dictionary<Type, IEnumerable<Func<object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<object>>>();
+    internal readonly Dictionary<Type, IEnumerable<Func<ResolutionInformation, object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<ResolutionInformation, object>>>();
     private DependencyContainerMode _mode = DependencyContainerMode.Regular;
 
     /// <summary>
@@ -86,11 +75,7 @@ namespace KittyDI
         throw new ContainerLockedException();
       }
 
-      // Act as if the contract has already been resolved
-      var resolutionInformation = new ResolutionInformation(this);
-      resolutionInformation.ResolutionChain.Push(registeredType);
-
-      CreateFactory(registeredType, resolutionInformation);
+      CreateFactory(registeredType);
     }
 
     /// <summary>
@@ -100,7 +85,7 @@ namespace KittyDI
     /// <returns>An instance of the requestsed type</returns>
     public T Resolve<T>()
     {
-      return (T) ResolveFactoryInternal(typeof(T), new ResolutionInformation(this))();
+      return (T) ResolveFactoryInternal(typeof(T))(CreateResolutionInformation());
     }
 
     /// <summary>
@@ -131,28 +116,28 @@ namespace KittyDI
 
       if (!isSingleton)
       {
-        AddFactory(typeof(TContract), () => factory());
+        AddFactory(typeof(TContract), _ => factory());
       }
       else
       {
-        AddFactory(typeof(TContract), CreateSingletonFactory(factory));
+        AddFactory(typeof(TContract), CreateSingletonFactory(_ => factory()));
       }
     }
 
-    private void AddFactory(Type contract, Func<object> factory)
+    private void AddFactory(Type contract, Func<ResolutionInformation, object> factory)
     {
       if (!_factories.ContainsKey(contract))
       {
         _factories[contract] = factory;
-        MultipleRegistrations[contract] = new[] {factory};
+        MultipleRegistrations[contract] = new[] { _factories[contract] };
       }
       else
       {
-        _factories[contract] = () =>
+        _factories[contract] = _ =>
         {
           throw new MultipleTypesRegisteredException {RequestedType = contract};
         };
-        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] {factory});
+        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] { _factories[contract] });
       }
     }
 
@@ -161,10 +146,11 @@ namespace KittyDI
     /// </summary>
     public void InitializeServices()
     {
+      var resolutionInformation = CreateResolutionInformation();
+
       foreach (var type in _servicesToInitialize)
       {
-        var instance = _factories[type]();
-        _factories[type] = () => instance;
+        _factories[type](resolutionInformation);
       }
     }
 
@@ -231,46 +217,47 @@ namespace KittyDI
       RegisterType(implementationType);
 
       // Act as if the contract has already been resolved
-      var resolutionInformation = new ResolutionInformation(this);
+      var resolutionInformation = CreateResolutionInformation();
       resolutionInformation.ResolutionChain.Push(contractType);
 
-      Func<object> factory = () => ResolveFactoryInternal(implementationType, resolutionInformation)();
+      Func<ResolutionInformation, object> factory = ResolveFactoryInternal(implementationType);
 
       AddFactory(contractType, !isSingleton ? factory : CreateSingletonFactory(factory));
     }
 
-    internal Func<object> ResolveFactoryInternal(Type requestedType, ResolutionInformation resolutionInformation)
+    internal ResolutionInformation CreateResolutionInformation(Type resolvedType = null)
     {
-      if (resolutionInformation.ResolutionChain.Contains(requestedType))
+      var resolutionInformation = new ResolutionInformation(this);
+      if (resolvedType != null)
       {
-        throw new CircularDependencyException();
+        resolutionInformation.ResolutionChain.Push(resolvedType);
       }
 
-      resolutionInformation.ResolutionChain.Push(requestedType);
+      return resolutionInformation;
+    }
 
-      var factory = FindExistingFactory(requestedType) 
-        ??  ResolveFactoryForGenericType(requestedType, resolutionInformation)
-        ??  ResolveFactoryForUnknownType(requestedType, resolutionInformation);
 
-      resolutionInformation.ResolutionChain.Pop();
-        
-      return factory;
+    internal Func<ResolutionInformation, object> ResolveFactoryInternal(Type requestedType)
+    {
+      return FindExistingFactory(requestedType) 
+             ??  ResolveFactoryForGenericType(requestedType)
+             ??  ResolveFactoryForUnknownType(requestedType);
     } 
 
-    private Func<object> ResolveFactoryForUnknownType(Type requestedType, ResolutionInformation resolutionInformation)
+    private Func<ResolutionInformation, object> ResolveFactoryForUnknownType(Type requestedType)
     {
       if (_mode != DependencyContainerMode.Regular)
       {
         throw new ContainerLockedException();
       }
 
-      CreateFactory(requestedType, resolutionInformation);
+      CreateFactory(requestedType);
       return _factories[requestedType];
     }
 
-    private void CreateFactory(Type requestedType, ResolutionInformation resolutionInformation)
+    private void CreateFactory(Type requestedType)
     {
-      var factory = FindConstructor(requestedType, resolutionInformation);
+      var factory = FindConstructor(requestedType);
 
       var singletonAttribute = requestedType.GetCustomAttribute<SingletonAttribute>();
       if (singletonAttribute != null)
@@ -281,8 +268,8 @@ namespace KittyDI
             factory = CreateSingletonFactory(factory);
             break;
           case SingletonAttribute.CreationRule.CreateWhenRegistered:
-            var instance = CreateSingletonFactory(factory)();
-            factory = () => instance;
+            var instance = CreateSingletonFactory(factory)(CreateResolutionInformation());
+            factory = _ => instance;
             break;
           case SingletonAttribute.CreationRule.CreateDurinServiceInitialization:
             factory = CreateSingletonFactory(factory);
@@ -293,24 +280,24 @@ namespace KittyDI
         }
       }
 
-      _factories[requestedType] = factory;
+      AddFactory(requestedType, factory);
     }
 
-    private Func<object> ResolveFactoryForGenericType(Type requestedType, ResolutionInformation resolutionInformation)
+    private Func<ResolutionInformation, object> ResolveFactoryForGenericType(Type requestedType)
     {
       if (!requestedType.IsGenericType) return null;
 
       var genericType = requestedType.GetGenericTypeDefinition();
       var typeParameters = requestedType.GetGenericArguments();
       
-      return GenericResolver.GenericResolvers
+      return resolutionInformation => GenericResolver.GenericResolvers
         .FirstOrDefault(x => x.Matches(genericType, typeParameters))
-        ?.Resolve(typeParameters, resolutionInformation);
+        ?.Resolve(typeParameters);
     }
 
-    private Func<object> FindExistingFactory(Type requestedType)
+    private Func<ResolutionInformation, object> FindExistingFactory(Type requestedType)
     {
-      Func<object> factory;
+      Func<ResolutionInformation, object> factory;
       if (_factories.TryGetValue(requestedType, out factory))
       {
         return factory;
@@ -328,7 +315,7 @@ namespace KittyDI
       return null;
     }
 
-    private Func<object> FindConstructor(Type resultType, ResolutionInformation resolutionInformation)
+    private Func<ResolutionInformation, object> FindConstructor(Type resultType)
     {
       var constructors = resultType.GetConstructors();
 
@@ -340,7 +327,7 @@ namespace KittyDI
       var constructor = constructors.FirstOrDefault(x => x.GetParameters().Length == 0);
       if (constructor != null)
       {
-        return () => constructor.Invoke(new object[] { });
+        return _ => constructor.Invoke(new object[] { });
       }
 
       constructor = constructors.Length == 1 
@@ -349,19 +336,36 @@ namespace KittyDI
 
       if (constructor == null) throw new NoSuitableConstructorFoundException(resultType);
 
-      var information = resolutionInformation.Clone();
-      return () =>
+      return resolutionInformation =>
       {
-        var parameterFactories = constructor.GetParameters().Select(param => information.Container.ResolveFactoryInternal(param.ParameterType, information)).ToArray();
-        return constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
+        if (resolutionInformation.ResolutionChain.Contains(resultType))
+        {
+          throw new CircularDependencyException();
+        }
+
+        resolutionInformation.ResolutionChain.Push(resultType);
+
+        var parameterFactories = constructor.GetParameters().Select(param => resolutionInformation.Container.ResolveFactoryInternal(param.ParameterType)).ToArray();
+        var result = constructor.Invoke(parameterFactories.Select(x => x(resolutionInformation)).ToArray());
+
+        resolutionInformation.ResolutionChain.Pop();
+
+        return result;
       };
     }
 
-    private Func<object> CreateSingletonFactory<T>(Func<T> factory)
+    private Func<ResolutionInformation, object> CreateSingletonFactory<T>(Func<ResolutionInformation, T> factory)
     {
-      var buffer = new Lazy<T>(() =>
+      var value = default(T);
+      var created = false;
+
+      return rI =>
       {
-        var value = factory();
+        if (created) return value;
+
+        value = factory(rI);
+        created = true;
+
         var disposableValue = value as IDisposable;
         if (disposableValue != null)
         {
@@ -369,10 +373,7 @@ namespace KittyDI
         }
 
         return value;
-      });
-
-      Func<object> newFactory = () => buffer.Value;
-      return newFactory;
+      };
     }
 
     /// <summary>

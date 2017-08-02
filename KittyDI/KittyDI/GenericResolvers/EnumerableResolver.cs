@@ -14,15 +14,15 @@ namespace KittyDI.GenericResolvers
     {
       public IEnumerable<T> Resolve(ResolutionInformation resolutionInformation)
       {
-        return GetRegistrations(resolutionInformation.Container, typeof(T)).Select(x => x()).Cast<T>();
+        return GetRegistrations(resolutionInformation.Container, typeof(T)).Select(x => x(resolutionInformation)).Cast<T>();
       }
 
-      private IEnumerable<Func<object>> GetRegistrations(DependencyContainer container, Type innerType)
+      private IEnumerable<Func<ResolutionInformation, object>> GetRegistrations(DependencyContainer container, Type innerType)
       {
-        IEnumerable<Func<object>> result;
+        IEnumerable<Func<ResolutionInformation, object>> result;
         container.MultipleRegistrations.TryGetValue(innerType, out result);
 
-        result = result ?? Enumerable.Empty<Func<object>>();
+        result = result ?? Enumerable.Empty<Func<ResolutionInformation, object>>();
 
         return result.Concat(container.Containers.SelectMany(x => GetRegistrations(x, innerType))).ToArray();
       }

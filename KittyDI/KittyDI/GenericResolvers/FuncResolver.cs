@@ -16,8 +16,8 @@ namespace KittyDI.GenericResolvers
     {
       public Func<T> Resolve(ResolutionInformation resolutionInformation)
       {
-        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(T), resolutionInformation);
-        return () => (T) factory();
+        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(T));
+        return () => (T) factory(resolutionInformation.Container.CreateResolutionInformation(typeof(Func<T>)));
       }
     }
   }
