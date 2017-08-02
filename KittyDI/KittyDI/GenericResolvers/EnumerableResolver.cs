@@ -12,9 +12,9 @@ namespace KittyDI.GenericResolvers
 
     private class InternalResolver<T> : IResolver<IEnumerable<T>>
     {
-      public IEnumerable<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
+      public IEnumerable<T> Resolve(ResolutionInformation resolutionInformation)
       {
-        return GetRegistrations(container, typeof(T)).Select(x => x()).Cast<T>();
+        return GetRegistrations(resolutionInformation.Container, typeof(T)).Select(x => x()).Cast<T>();
       }
 
       private IEnumerable<Func<object>> GetRegistrations(DependencyContainer container, Type innerType)

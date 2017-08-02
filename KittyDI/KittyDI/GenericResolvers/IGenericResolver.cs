@@ -19,13 +19,12 @@ namespace KittyDI.GenericResolvers
     /// <summary>
     /// Returns a factory that returns the requested generic type
     /// </summary>
-    /// <param name="container">The container to scan for resolution</param>
     /// <param name="typeParameters">The type parameters that turn the generic type definition into the requested type</param>
     /// <param name="previousResolutions">
     /// A set containing all previously requested types (including the current one).
     /// It is used for circular dependency detection.
     /// </param>
     /// <returns>A factory that returns the requested generic type</returns>
-    Func<object> Resolve(DependencyContainer container, Type[] typeParameters, ResolutionInformation previousResolutions);
+    Func<object> Resolve(Type[] typeParameters, ResolutionInformation previousResolutions);
   }
 }

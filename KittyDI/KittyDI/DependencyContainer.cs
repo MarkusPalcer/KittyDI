@@ -10,11 +10,18 @@ namespace KittyDI
 {
   internal class ResolutionInformation
   {
+    public ResolutionInformation(DependencyContainer container)
+    {
+      Container = container;
+    }
+
     internal Stack<Type> ResolutionChain { get; } = new Stack<Type>();
+    internal DependencyContainer Container { get;  }
 
     internal ResolutionInformation Clone()
     {
-      var result = new ResolutionInformation();
+      var result = new ResolutionInformation(Container);
+
       foreach (var type in ResolutionChain)
       {
         result.ResolutionChain.Push(type);
@@ -80,7 +87,7 @@ namespace KittyDI
       }
 
       // Act as if the contract has already been resolved
-      var resolutionInformation = new ResolutionInformation();
+      var resolutionInformation = new ResolutionInformation(this);
       resolutionInformation.ResolutionChain.Push(registeredType);
 
       CreateFactory(registeredType, resolutionInformation);
@@ -93,7 +100,7 @@ namespace KittyDI
     /// <returns>An instance of the requestsed type</returns>
     public T Resolve<T>()
     {
-      return (T) ResolveFactoryInternal(typeof(T), new ResolutionInformation())();
+      return (T) ResolveFactoryInternal(typeof(T), new ResolutionInformation(this))();
     }
 
     /// <summary>
@@ -148,7 +155,6 @@ namespace KittyDI
         MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] {factory});
       }
     }
-
 
     /// <summary>
     /// Instantiates all types that have a <see cref="SingletonAttribute"/> attribute with <see cref="SingletonAttribute.Create"/> set to <see cref="SingletonAttribute.CreationRule.CreateDurinServiceInitialization"/> 
@@ -225,7 +231,7 @@ namespace KittyDI
       RegisterType(implementationType);
 
       // Act as if the contract has already been resolved
-      var resolutionInformation = new ResolutionInformation();
+      var resolutionInformation = new ResolutionInformation(this);
       resolutionInformation.ResolutionChain.Push(contractType);
 
       Func<object> factory = () => ResolveFactoryInternal(implementationType, resolutionInformation)();
@@ -299,7 +305,7 @@ namespace KittyDI
       
       return GenericResolver.GenericResolvers
         .FirstOrDefault(x => x.Matches(genericType, typeParameters))
-        ?.Resolve(this, typeParameters, resolutionInformation);
+        ?.Resolve(typeParameters, resolutionInformation);
     }
 
     private Func<object> FindExistingFactory(Type requestedType)
@@ -346,7 +352,7 @@ namespace KittyDI
       var information = resolutionInformation.Clone();
       return () =>
       {
-        var parameterFactories = constructor.GetParameters().Select(param => ResolveFactoryInternal(param.ParameterType, information)).ToArray();
+        var parameterFactories = constructor.GetParameters().Select(param => information.Container.ResolveFactoryInternal(param.ParameterType, information)).ToArray();
         return constructor.Invoke(parameterFactories.Select(x => x()).ToArray());
       };
     }

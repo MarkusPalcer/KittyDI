@@ -14,9 +14,9 @@ namespace KittyDI.GenericResolvers
 
     private class InternalResolver<T> : IResolver<Func<T>>
     {
-      public Func<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
+      public Func<T> Resolve(ResolutionInformation resolutionInformation)
       {
-        var factory = container.ResolveFactoryInternal(typeof(T), resolutionInformation);
+        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(T), resolutionInformation);
         return () => (T) factory();
       }
     }

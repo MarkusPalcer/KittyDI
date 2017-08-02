@@ -17,12 +17,11 @@ namespace KittyDI.GenericResolvers
       /// <summary>
       /// Resolves the actual factory
       /// </summary>
-      /// <param name="container">The container to scan for resolution</param>
       /// <param name="resolutionInformation">
       /// An object containing all information about the current resolution process
       /// </param>
       /// <returns>A factory that returns the requested generic type</returns>
-      TResolved Resolve(DependencyContainer container, ResolutionInformation resolutionInformation);
+      TResolved Resolve(ResolutionInformation resolutionInformation);
     }
 
     internal static readonly List<IGenericResolver> GenericResolvers = new List<IGenericResolver>
@@ -46,14 +45,14 @@ namespace KittyDI.GenericResolvers
       return genericType == _resolvedType && typeParameters.Length == _resolvedType.GetGenericArguments().Length;
     }
 
-    Func<object> IGenericResolver.Resolve(DependencyContainer container, Type[] typeParameters, ResolutionInformation resolutionInformation)
+    Func<object> IGenericResolver.Resolve(Type[] typeParameters, ResolutionInformation resolutionInformation)
     {
       var type = _internalResolverType
         .MakeGenericType(typeParameters);
       var method = type
         .GetMethod("Resolve");
       var instance = Activator.CreateInstance(type);
-      return () => method.Invoke(instance, new object[] { container, resolutionInformation });
+      return () => method.Invoke(instance, new object[] { resolutionInformation });
     }
   }
 }

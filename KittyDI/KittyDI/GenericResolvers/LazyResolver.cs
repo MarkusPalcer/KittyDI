@@ -7,9 +7,9 @@ namespace KittyDI.GenericResolvers
   {
     private class Resolver<T> : IResolver<Lazy<T>>
     {
-      public Lazy<T> Resolve(DependencyContainer container, ResolutionInformation resolutionInformation)
+      public Lazy<T> Resolve( ResolutionInformation resolutionInformation)
       {
-        return new Lazy<T>(container.Resolve<Func<T>>());
+        return new Lazy<T>(resolutionInformation.Container.Resolve<Func<T>>());
       }
     }
 
