@@ -494,5 +494,17 @@ namespace TestKitten
       sut.Mode = DependencyContainerMode.Strict;
       sut.Invoking(x => x.Mode = DependencyContainerMode.Regular).ShouldNotThrow();
     }
+
+    [TestMethod]
+    public void ResolvingWithOneGivenParameter()
+    {
+      var sut = new DependencyContainer();
+
+      var factory = sut.Resolve<Func<ITestInterface, NestedResolutionType<ITestInterface>>>();
+      var mock = new Mock<ITestInterface>();
+      var result = factory(mock.Object);
+
+      result.Value.Should().BeSameAs(mock.Object);
+    }
   }
 }

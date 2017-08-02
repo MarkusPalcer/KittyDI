@@ -2,6 +2,11 @@ namespace TestClasses
 {
   public class NestedResolutionType<T> : ITestInterface
   {
-    public NestedResolutionType(T t) { }
+    public T Value { get; }
+
+    public NestedResolutionType(T t)
+    {
+      Value = t;
+    }
   }
 }

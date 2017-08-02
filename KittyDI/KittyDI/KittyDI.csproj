@@ -56,6 +56,7 @@
     <Compile Include="GenericResolvers\LazyResolver.cs" />
     <Compile Include="IDependencyContainer.cs" />
     <Compile Include="Exceptions\NoSuitableConstructorFoundException.cs" />
+    <Compile Include="Exceptions\NoSuitableGenericResolverFoundException.cs" />
     <Compile Include="Properties\AssemblyInfo.cs" />
     <Compile Include="Attribute\ProvidingConstructorAttribute.cs" />
     <Compile Include="Registrar.cs" />

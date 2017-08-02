@@ -1,6 +1,5 @@
 ﻿using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using KittyDI.Attribute;
@@ -18,6 +17,8 @@ namespace KittyDI
 
     internal Stack<Type> ResolutionChain { get; } = new Stack<Type>();
     internal DependencyContainer Container { get;  }
+
+    internal Dictionary<Type, object> GivenInstances { get; } = new Dictionary<Type, object>();
   }
 
   /// <summary>
@@ -291,10 +292,9 @@ namespace KittyDI
 
       var genericType = requestedType.GetGenericTypeDefinition();
       var typeParameters = requestedType.GetGenericArguments();
-      
+
       return GenericResolver.GenericResolvers
-        .FirstOrDefault(x => x.Matches(genericType, typeParameters))
-        ?.Resolve(typeParameters);
+        .FirstOrDefault(x => x.Matches(genericType, typeParameters))?.Resolve(typeParameters);
     }
 
     private Func<ResolutionInformation, object> FindExistingFactory(Type requestedType)
@@ -347,13 +347,24 @@ namespace KittyDI
 
         resolutionInformation.ResolutionChain.Push(resultType);
 
-        var parameterFactories = constructor.GetParameters().Select(param => resolutionInformation.Container.ResolveFactoryInternal(param.ParameterType)).ToArray();
-        var result = constructor.Invoke(parameterFactories.Select(x => x(resolutionInformation)).ToArray());
+        var parameters = constructor.GetParameters()
+          .Select(param => ResolveDependency(param.ParameterType, resolutionInformation))
+          .ToArray();
+
+        var result = constructor.Invoke(parameters);
 
         resolutionInformation.ResolutionChain.Pop();
 
         return result;
       };
+    }
+
+    private object ResolveDependency(Type dependencyType, ResolutionInformation ri)
+    {
+      object result;
+      return ri.GivenInstances.TryGetValue(dependencyType, out result) 
+        ? result 
+        : ri.Container.ResolveFactoryInternal(dependencyType)(ri);
     }
 
     private Func<ResolutionInformation, object> CreateSingletonFactory<T>(Func<ResolutionInformation, T> factory)

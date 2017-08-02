@@ -29,7 +29,8 @@ namespace KittyDI.GenericResolvers
     {
       new FuncResolver(),
       new EnumerableResolver(), 
-      new LazyResolver()
+      new LazyResolver(),
+      new FuncResolver1()
     };
     
     private readonly Type _internalResolverType;
