@@ -25,8 +25,8 @@ namespace TestKitten
         return mock;
       });
 
-      sut.Resolve<Func<TestImplementation>>()().Should().Be(mock);
       sut.Resolve<TestImplementation>().Should().Be(mock);
+      sut.Resolve<Func<TestImplementation>>()().Should().Be(mock);
       calls.Should().Be(2);
     }
 

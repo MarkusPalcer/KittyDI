@@ -116,11 +116,11 @@ namespace KittyDI
 
       if (!isSingleton)
       {
-        AddFactory(typeof(TContract), _ => factory());
+        AddFactory(typeof(TContract), _ => (TContract)factory());
       }
       else
       {
-        AddFactory(typeof(TContract), CreateSingletonFactory(_ => factory()));
+        AddFactory(typeof(TContract), CreateSingletonFactory(_ => (TContract)factory()));
       }
     }
 
@@ -137,7 +137,7 @@ namespace KittyDI
         {
           throw new MultipleTypesRegisteredException {RequestedType = contract};
         };
-        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] { _factories[contract] });
+        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] { factory });
       }
     }
 
@@ -214,7 +214,9 @@ namespace KittyDI
         throw new ContainerLockedException();
       }
 
-      RegisterType(implementationType);
+      // If there already is a factory for the implementation, use that
+      if (!_factories.ContainsKey(implementationType))
+        RegisterType(implementationType);
 
       // Act as if the contract has already been resolved
       var resolutionInformation = CreateResolutionInformation();
@@ -290,7 +292,7 @@ namespace KittyDI
       var genericType = requestedType.GetGenericTypeDefinition();
       var typeParameters = requestedType.GetGenericArguments();
       
-      return resolutionInformation => GenericResolver.GenericResolvers
+      return GenericResolver.GenericResolvers
         .FirstOrDefault(x => x.Matches(genericType, typeParameters))
         ?.Resolve(typeParameters);
     }
