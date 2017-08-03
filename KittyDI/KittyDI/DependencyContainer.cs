@@ -16,7 +16,7 @@ namespace KittyDI
     }
 
     internal Stack<Type> ResolutionChain { get; } = new Stack<Type>();
-    internal DependencyContainer Container { get;  }
+    internal DependencyContainer Container { get; }
 
     internal Dictionary<Type, object> GivenInstances { get; } = new Dictionary<Type, object>();
   }
@@ -57,6 +57,17 @@ namespace KittyDI
     }
 
     /// <summary>
+    /// Returns an instance of the requested type, resolving dependencies recursively
+    /// </summary>
+    /// <typeparam name="T">The requested type</typeparam>
+    /// <returns>An instance of the requestsed type</returns>
+    public T Resolve<T>()
+    {
+      return (T)ResolveFactoryInternal(typeof(T))(CreateResolutionInformation());
+    }
+
+    #region Registration
+    /// <summary>
     /// Registers a type to the dependency container, so it can be resolved later
     /// </summary>
     /// <typeparam name="T">The type to register</typeparam>
@@ -79,15 +90,6 @@ namespace KittyDI
       CreateFactory(registeredType);
     }
 
-    /// <summary>
-    /// Returns an instance of the requested type, resolving dependencies recursively
-    /// </summary>
-    /// <typeparam name="T">The requested type</typeparam>
-    /// <returns>An instance of the requestsed type</returns>
-    public T Resolve<T>()
-    {
-      return (T) ResolveFactoryInternal(typeof(T))(CreateResolutionInformation());
-    }
 
     /// <summary>
     /// Register a function that is used to create an instance of a type
@@ -136,7 +138,7 @@ namespace KittyDI
       {
         _factories[contract] = _ =>
         {
-          throw new MultipleTypesRegisteredException {RequestedType = contract};
+          throw new MultipleTypesRegisteredException { RequestedType = contract };
         };
         MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] { factory });
       }
@@ -227,7 +229,9 @@ namespace KittyDI
 
       AddFactory(contractType, !isSingleton ? factory : CreateSingletonFactory(factory));
     }
+    #endregion
 
+    #region Resolution internals
     internal ResolutionInformation CreateResolutionInformation(Type resolvedType = null)
     {
       var resolutionInformation = new ResolutionInformation(this);
@@ -239,13 +243,12 @@ namespace KittyDI
       return resolutionInformation;
     }
 
-
     internal Func<ResolutionInformation, object> ResolveFactoryInternal(Type requestedType)
     {
-      return FindExistingFactory(requestedType) 
-             ??  ResolveFactoryForGenericType(requestedType)
-             ??  ResolveFactoryForUnknownType(requestedType);
-    } 
+      return FindExistingFactory(requestedType)
+             ?? ResolveFactoryForGenericType(requestedType)
+             ?? ResolveFactoryForUnknownType(requestedType);
+    }
 
     private Func<ResolutionInformation, object> ResolveFactoryForUnknownType(Type requestedType)
     {
@@ -332,8 +335,8 @@ namespace KittyDI
         return _ => constructor.Invoke(new object[] { });
       }
 
-      constructor = constructors.Length == 1 
-        ? constructors.First() 
+      constructor = constructors.Length == 1
+        ? constructors.First()
         : constructors.SingleOrDefault(x => x.GetCustomAttribute<ProvidingConstructorAttribute>() != null);
 
       if (constructor == null) throw new NoSuitableConstructorFoundException(resultType);
@@ -362,8 +365,8 @@ namespace KittyDI
     private object ResolveDependency(Type dependencyType, ResolutionInformation ri)
     {
       object result;
-      return ri.GivenInstances.TryGetValue(dependencyType, out result) 
-        ? result 
+      return ri.GivenInstances.TryGetValue(dependencyType, out result)
+        ? result
         : ri.Container.ResolveFactoryInternal(dependencyType)(ri);
     }
 
@@ -388,6 +391,7 @@ namespace KittyDI
         return value;
       };
     }
+    #endregion
 
     /// <summary>
     /// Adds the given container to this, thus giving this container and its content access to the content of the added container
