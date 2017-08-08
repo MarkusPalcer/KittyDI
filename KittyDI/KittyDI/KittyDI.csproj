@@ -47,9 +47,8 @@
     <Compile Include="DependencyContainer.cs" />
     <Compile Include="Exceptions\ContainerLockedException.cs" />
     <Compile Include="Exceptions\DependencyException.cs" />
-    <Compile Include="Exceptions\MultipleTypesRegisteredException.cs" />
     <Compile Include="Exceptions\NoInterfaceImplementationGivenException.cs" />
-    <Compile Include="GenericResolvers\EnumerableResolver.cs" />
+    <Compile Include="Exceptions\TypeAlreadyRegisteredException.cs" />
     <Compile Include="GenericResolvers\FuncResolver.cs" />
     <Compile Include="GenericResolvers\GenericResolver.cs" />
     <Compile Include="GenericResolvers\IGenericResolver.cs" />

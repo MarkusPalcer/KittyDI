@@ -1,6 +1,4 @@
 ﻿using System;
-using System.Collections.Generic;
-using System.Linq;
 using FluentAssertions;
 using KittyDI;
 using KittyDI.Exceptions;
@@ -44,9 +42,8 @@ namespace TestKitten
 
       sut.Resolve<Func<ITestInterface>>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
-      sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
 
-      calls.Should().Be(3);
+      calls.Should().Be(2);
     }
 
     [TestMethod]
@@ -69,7 +66,6 @@ namespace TestKitten
 
       sut.Resolve<Func<ITestInterface>>()().Should().Be(mock);
       sut.Resolve<ITestInterface>().Should().Be(mock);
-      sut.Resolve<IEnumerable<ITestInterface>>().Should().BeEquivalentTo(mock);
     }
 
     [TestMethod]
@@ -85,7 +81,6 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, TestImplementation>();
       sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
-      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<TestImplementation>();
     }
 
     [TestMethod]
@@ -94,7 +89,6 @@ namespace TestKitten
       var sut = new DependencyContainer();
       sut.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation));
       sut.Resolve<ITestInterface>().Should().BeOfType<TestImplementation>();
-      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<TestImplementation>();
     }
 
     [TestMethod]
@@ -121,7 +115,6 @@ namespace TestKitten
       sut.RegisterInstance(2);
       sut.RegisterImplementation<ITestInterface, NestedResolutionType<TypeWithSingleConstructor>>();
       sut.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<TypeWithSingleConstructor>>();
-      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<TypeWithSingleConstructor>>();
     }
 
     [TestMethod]
@@ -155,12 +148,7 @@ namespace TestKitten
     {
       var sut = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, TestImplementation>();
-      sut.RegisterImplementation<ITestInterface, TestDisposable>();
-
-      sut.Invoking(x => x.Resolve<ITestInterface>())
-        .ShouldThrow<MultipleTypesRegisteredException>()
-        .Which.RequestedType.Should()
-        .Be(typeof(ITestInterface));
+      sut.Invoking(x => x.RegisterImplementation<ITestInterface, TestDisposable>()).ShouldThrow<TypeAlreadyRegisteredException>();
     }
 
     [TestMethod]
@@ -174,7 +162,6 @@ namespace TestKitten
       sut.AddContainer(added);
       sut.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       added.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
-      sut.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -188,23 +175,6 @@ namespace TestKitten
 
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
-      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
-    }
-
-    [TestMethod]
-    public void ChildContainersExtendEnumerables()
-    {
-      var sut = new DependencyContainer();
-      var child = sut.CreateChild();
-
-      var instance1 = new Mock<ITestInterface>().Object;
-      var instance2 = new Mock<ITestInterface>().Object;
-
-      sut.RegisterInstance(instance1);
-      child.RegisterInstance(instance2);
-
-      var result = child.Resolve<IEnumerable<ITestInterface>>();
-      result.Should().BeEquivalentTo(instance1, instance2);
     }
 
     [TestMethod]
@@ -219,7 +189,6 @@ namespace TestKitten
       child.AddContainer(sut);
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
-      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -234,7 +203,6 @@ namespace TestKitten
       child.AddContainer(sut);
       child.Resolve<ITestInterface>().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
       sut.Invoking(x => x.Resolve<ITestInterface>()).ShouldThrow<NoInterfaceImplementationGivenException>();
-      child.Resolve<IEnumerable<ITestInterface>>().Single().Should().BeOfType<NestedResolutionType<ITestInterface2>>();
     }
 
     [TestMethod]
@@ -294,9 +262,6 @@ namespace TestKitten
       sut.RegisterFactory<ITestInterface>(() => new TestDisposable(), true);
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
-
-      instance1.Should().BeSameAs(instance2);
 
       sut.Dispose();
       ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
@@ -309,9 +274,6 @@ namespace TestKitten
       sut.RegisterImplementation<ITestInterface, TestDisposable>(true);
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
-
-      instance1.Should().BeSameAs(instance2);
 
       sut.Dispose();
       ((TestDisposable) instance1).IsDisposed.Should().BeTrue();
@@ -337,9 +299,6 @@ namespace TestKitten
       sut.RegisterImplementation<ITestInterface, TestSingleton>();
 
       var instance1 = sut.Resolve<ITestInterface>();
-      var instance2 = sut.Resolve<IEnumerable<ITestInterface>>().Single();
-
-      instance1.Should().BeSameAs(instance2);
 
       sut.Dispose();
       ((TestDisposable)instance1).IsDisposed.Should().BeTrue();
@@ -419,11 +378,7 @@ namespace TestKitten
     {
       var sut = new DependencyContainer();
       sut.RegisterImplementation<ITestInterface, TestImplementation>();
-      sut.RegisterImplementation<ITestInterface, TestDisposable>();
-
-      var result = sut.Resolve<IEnumerable<ITestInterface>>();
-
-      result.Select(x => x.GetType()).Should().BeEquivalentTo(typeof(TestImplementation), typeof(TestDisposable));
+      sut.Invoking(x => x.RegisterImplementation<ITestInterface, TestDisposable>()).ShouldThrow<TypeAlreadyRegisteredException>();
     }
 
     [TestMethod]

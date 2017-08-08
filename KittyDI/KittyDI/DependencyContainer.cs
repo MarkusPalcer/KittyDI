@@ -30,7 +30,6 @@ namespace KittyDI
     internal readonly List<DependencyContainer> Containers = new List<DependencyContainer>();
     private readonly List<IDisposable> _disposables = new List<IDisposable>();
     private readonly List<Type> _servicesToInitialize = new List<Type>();
-    internal readonly Dictionary<Type, IEnumerable<Func<ResolutionInformation, object>>> MultipleRegistrations = new Dictionary<Type, IEnumerable<Func<ResolutionInformation, object>>>();
     private DependencyContainerMode _mode = DependencyContainerMode.Regular;
 
     /// <summary>
@@ -129,19 +128,10 @@ namespace KittyDI
 
     private void AddFactory(Type contract, Func<ResolutionInformation, object> factory)
     {
-      if (!_factories.ContainsKey(contract))
-      {
-        _factories[contract] = factory;
-        MultipleRegistrations[contract] = new[] { _factories[contract] };
-      }
-      else
-      {
-        _factories[contract] = _ =>
-        {
-          throw new MultipleTypesRegisteredException { RequestedType = contract };
-        };
-        MultipleRegistrations[contract] = MultipleRegistrations[contract].Concat(new[] { factory });
-      }
+      if (_factories.ContainsKey(contract))
+        throw new TypeAlreadyRegisteredException {ConflictingType = contract};
+
+      _factories[contract] = factory;
     }
 
     /// <summary>

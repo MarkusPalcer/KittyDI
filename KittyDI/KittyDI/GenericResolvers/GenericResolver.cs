@@ -28,7 +28,6 @@ namespace KittyDI.GenericResolvers
     internal static readonly List<IGenericResolver> GenericResolvers = new List<IGenericResolver>
     {
       new FuncResolver(),
-      new EnumerableResolver(), 
       new LazyResolver(),
       new FuncResolver1()
     };
