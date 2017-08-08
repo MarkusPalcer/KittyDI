@@ -11,6 +11,8 @@ namespace KittyDI
   /// </summary>
   public class Registrar : List<Assembly>
   {
+    private readonly HashSet<Type> _contracts = new HashSet<Type>();
+
     public void AddAssemblyOf<T>()
     {
       Add(typeof(T).Assembly);
@@ -48,7 +50,7 @@ namespace KittyDI
         case AbstractHandlingTypes.RegisterAllImplementations:
           break;
         case AbstractHandlingTypes.RegisterContractsOnly:
-          typesWithAbstractBaseClasses = typesWithAbstractBaseClasses.Where(x => x.Item2.GetCustomAttribute<ContractAttribute>() != null);
+          typesWithAbstractBaseClasses = typesWithAbstractBaseClasses.Where(x => (x.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.Contains(x.Item1)));
           break;
         case AbstractHandlingTypes.NoRegistrationOfAbstractImplementations:
           typesWithAbstractBaseClasses = Enumerable.Empty<Tuple<Type, Type>>();
@@ -79,7 +81,7 @@ namespace KittyDI
           break;
         case InterfaceHandlingTypes.RegisterContractsOnly:
           typesWithInterfaces =
-            typesWithInterfaces.Where(tuple => tuple.Item1.GetCustomAttribute<ContractAttribute>() != null);
+            typesWithInterfaces.Where(tuple => (tuple.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.Contains(tuple.Item1)));
           break;
         case InterfaceHandlingTypes.NoInterfaceRegistration:
           typesWithInterfaces = Enumerable.Empty<Tuple<Type, Type>>();
@@ -195,6 +197,11 @@ namespace KittyDI
       RegisterToContainer(result);
 
       return result;
+    }
+
+    public void AddContract<TContract>()
+    {
+      _contracts.Add(typeof(TContract));
     }
   }
 }

@@ -40,6 +40,7 @@
     <Reference Include="System.Xml" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="AbstractClassWithoutContract.cs" />
     <Compile Include="AbstractContract.cs" />
     <Compile Include="AbstractTestImplementation.cs" />
     <Compile Include="CircularDependencyA.cs" />
@@ -47,6 +48,7 @@
     <Compile Include="ContractType.cs" />
     <Compile Include="ExplicitInstantiatedSingleton.cs" />
     <Compile Include="ImmediatelyInstantiatedSingleton.cs" />
+    <Compile Include="ImplementationOfAbstractClassWithoutContract.cs" />
     <Compile Include="ImplementationOfAbstractContract.cs" />
     <Compile Include="ImplementationOfAbstractTestImplementation.cs" />
     <Compile Include="ImplementationOfTestInterface2.cs" />

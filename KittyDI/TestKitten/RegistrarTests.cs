@@ -158,6 +158,8 @@ namespace TestKitten
 
       sut.AddAssemblyOf<ITestInterface>();
       sut.RegisterToContainer(containerMock.Object);
+
+      containerMock.VerifyAll();
     }
 
     [TestMethod]
@@ -177,6 +179,58 @@ namespace TestKitten
 
       sut.AddAssemblyOf<ITestInterface>();
       sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void AddCustomContractInterface()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.RegisterContractsOnly,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.NoRegistrationOfAbstractImplementations
+      };
+
+
+      // TODO: Duplicate code
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestDisposable), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(TestSingleton), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(NestedInterfaceImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface), typeof(ImplementationOfAbstractTestImplementation), false));
+
+      sut.AddContract<ITestInterface2>();
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(ITestInterface2), typeof(ImplementationOfTestInterface2), false));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+    }
+
+    [TestMethod]
+    public void AddCustomAbstractContract()
+    {
+      var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
+
+      var sut = new Registrar
+      {
+        TypeHandling = Registrar.TypeHandlingTypes.NoTypeRegistration,
+        InterfaceHandling = Registrar.InterfaceHandlingTypes.NoInterfaceRegistration,
+        AbstractImplementationHandling = Registrar.AbstractHandlingTypes.RegisterContractsOnly
+      };
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractContract), typeof(ImplementationOfAbstractContract), false));
+
+      sut.AddContract<AbstractClassWithoutContract>();
+
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractClassWithoutContract), typeof(ImplementationOfAbstractClassWithoutContract), false));
+
+      sut.AddAssemblyOf<ITestInterface>();
+      sut.RegisterToContainer(containerMock.Object);
+
+      containerMock.VerifyAll();
     }
   }
 }
