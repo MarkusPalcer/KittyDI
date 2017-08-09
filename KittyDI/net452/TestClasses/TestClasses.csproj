@@ -70,7 +70,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\KittyDI\KittyDI.csproj">
-      <Project>{DC96329C-48D6-4A01-A53B-431A2C5FFD17}</Project>
+      <Project>{dc96329c-48d6-4a01-a53b-431a2c5ffd17}</Project>
       <Name>KittyDI</Name>
     </ProjectReference>
   </ItemGroup>

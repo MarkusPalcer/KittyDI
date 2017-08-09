@@ -1,4 +1,5 @@
 using System;
+using System.Reflection;
 
 namespace KittyDI.GenericResolvers
 {
@@ -16,8 +17,8 @@ namespace KittyDI.GenericResolvers
     {
       public Func<T> Resolve(ResolutionInformation resolutionInformation)
       {
-        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(T));
-        return () => (T) factory(resolutionInformation.Container.CreateResolutionInformation(typeof(Func<T>)));
+        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(T).GetTypeInfo());
+        return () => (T) factory(resolutionInformation.Container.CreateResolutionInformation(typeof(Func<T>).GetTypeInfo()));
       }
     }
   }
@@ -32,11 +33,11 @@ namespace KittyDI.GenericResolvers
     {
       public Func<TIn, TOut> Resolve(ResolutionInformation resolutionInformation)
       {
-        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(TOut));
+        var factory = resolutionInformation.Container.ResolveFactoryInternal(typeof(TOut).GetTypeInfo());
         return p1 =>
         {
-          var ri = resolutionInformation.Container.CreateResolutionInformation(typeof(Func<TIn, TOut>));
-          ri.GivenInstances[typeof(TIn)] = p1;
+          var ri = resolutionInformation.Container.CreateResolutionInformation(typeof(Func<TIn, TOut>).GetTypeInfo());
+          ri.GivenInstances[typeof(TIn).GetTypeInfo()] = p1;
 
           return (TOut) factory(ri);
         };

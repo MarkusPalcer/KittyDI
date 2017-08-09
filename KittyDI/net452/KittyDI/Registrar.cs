@@ -11,11 +11,11 @@ namespace KittyDI
   /// </summary>
   public class Registrar : List<Assembly>
   {
-    private readonly HashSet<Type> _contracts = new HashSet<Type>();
+    private readonly Dictionary<TypeInfo, object> _contracts = new Dictionary<TypeInfo, object>();
 
     public void AddAssemblyOf<T>()
     {
-      Add(typeof(T).Assembly);
+      Add(typeof(T).GetTypeInfo().Assembly);
     }
 
     public void RegisterToContainer(IDependencyContainer container)
@@ -27,11 +27,11 @@ namespace KittyDI
       RegisterAbstractImplementations(container);
     }
 
-    private IEnumerable<Type> GetBaseTypes(Type type)
+    private IEnumerable<TypeInfo> GetBaseTypes(TypeInfo type)
     {
       while (type != null)
       {
-        type = type.BaseType;
+        type = type.BaseType?.GetTypeInfo();
         if (type != null) yield return type;
       }
     }
@@ -39,7 +39,7 @@ namespace KittyDI
     private void RegisterAbstractImplementations(IDependencyContainer container)
     {
       var typesWithAbstractBaseClasses = this
-        .SelectMany(assembly => assembly.GetTypes())
+        .SelectMany(assembly => assembly.DefinedTypes)
         .Where(type => !type.IsGenericTypeDefinition)
         .Where(type => !type.IsInterface)
         .Where(type => !type.IsAbstract)
@@ -50,10 +50,10 @@ namespace KittyDI
         case AbstractHandlingTypes.RegisterAllImplementations:
           break;
         case AbstractHandlingTypes.RegisterContractsOnly:
-          typesWithAbstractBaseClasses = typesWithAbstractBaseClasses.Where(x => (x.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.Contains(x.Item1)));
+          typesWithAbstractBaseClasses = typesWithAbstractBaseClasses.Where(x => (x.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.ContainsKey(x.Item1)));
           break;
         case AbstractHandlingTypes.NoRegistrationOfAbstractImplementations:
-          typesWithAbstractBaseClasses = Enumerable.Empty<Tuple<Type, Type>>();
+          typesWithAbstractBaseClasses = Enumerable.Empty<Tuple<TypeInfo, TypeInfo>>();
           break;
         default:
           throw new ArgumentOutOfRangeException();
@@ -61,18 +61,18 @@ namespace KittyDI
 
       foreach (var tuple in typesWithAbstractBaseClasses)
       {
-        container.RegisterImplementation(tuple.Item1, tuple.Item2);
+        container.RegisterImplementation(tuple.Item1.AsType(), tuple.Item2.AsType());
       }
     }
 
     private void RegisterImplementations(IDependencyContainer container)
     {
       var typesWithInterfaces = this
-        .SelectMany(assembly => assembly.GetTypes())
+        .SelectMany(assembly => assembly.DefinedTypes)
         .Where(type => !type.IsGenericTypeDefinition)
         .Where(type => !type.IsInterface)
         .Where(type => !type.IsAbstract)
-        .SelectMany(type => type.GetInterfaces().Select(@interface => Tuple.Create(@interface, type)));
+        .SelectMany(type => type.ImplementedInterfaces.Select(@interface => Tuple.Create(@interface.GetTypeInfo(), type)));
 
       switch (InterfaceHandling)
       {
@@ -81,10 +81,10 @@ namespace KittyDI
           break;
         case InterfaceHandlingTypes.RegisterContractsOnly:
           typesWithInterfaces =
-            typesWithInterfaces.Where(tuple => (tuple.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.Contains(tuple.Item1)));
+            typesWithInterfaces.Where(tuple => (tuple.Item1.GetCustomAttribute<ContractAttribute>() != null) || (_contracts.ContainsKey(tuple.Item1)));
           break;
         case InterfaceHandlingTypes.NoInterfaceRegistration:
-          typesWithInterfaces = Enumerable.Empty<Tuple<Type, Type>>();
+          typesWithInterfaces = Enumerable.Empty<Tuple<TypeInfo, TypeInfo>>();
           break;
         default:
           throw new ArgumentOutOfRangeException();
@@ -92,24 +92,24 @@ namespace KittyDI
 
       foreach (var tuple in typesWithInterfaces)
       {
-        container.RegisterImplementation(tuple.Item1, tuple.Item2);
+        container.RegisterImplementation(tuple.Item1.AsType(), tuple.Item2.AsType());
       }
     }
 
     private void RegisterTypes(IDependencyContainer container)
     {
-      IEnumerable<Type> types;
+      IEnumerable<TypeInfo> types;
       switch (TypeHandling)
       {
         case TypeHandlingTypes.RegisterAllTypes:
-          types = this.SelectMany(x => x.GetTypes());
+          types = this.SelectMany(x => x.DefinedTypes);
           break;
         case TypeHandlingTypes.RegisterContractsOnly:
-          types = this.SelectMany(x => x.GetTypes())
+          types = this.SelectMany(x => x.DefinedTypes)
                       .Where(x => x.GetCustomAttribute<ContractAttribute>(false) != null);
           break;
         case TypeHandlingTypes.NoTypeRegistration:
-          types = Enumerable.Empty<Type>();
+          types = Enumerable.Empty<TypeInfo>();
           break;
         default:
           throw new ArgumentOutOfRangeException();
@@ -123,7 +123,7 @@ namespace KittyDI
 
       foreach (var type in types)
       {
-        container.RegisterType(type);
+        container.RegisterType(type.AsType());
       }
     }
 
@@ -201,7 +201,7 @@ namespace KittyDI
 
     public void AddContract<TContract>()
     {
-      _contracts.Add(typeof(TContract));
+      _contracts.Add(typeof(TContract).GetTypeInfo(), null);
     }
   }
 }

@@ -1,4 +1,5 @@
 ﻿using System;
+using System.Diagnostics.CodeAnalysis;
 using KittyDI;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
@@ -137,6 +138,11 @@ namespace TestKitten
       containerMock.Setup(x => x.RegisterType(typeof(TestSingleton)));
       containerMock.Setup(x => x.RegisterType(typeof(TypeWithSingleConstructor)));
       containerMock.Setup(x => x.RegisterType(typeof(TypeWithUnsuitableConstructor)));
+      containerMock.Setup(x => x.RegisterType(typeof(ExplicitInstantiatedSingleton)));
+      containerMock.Setup(x => x.RegisterType(typeof(ImmediatelyInstantiatedSingleton)));
+      containerMock.Setup(x => x.RegisterType(typeof(LazilyInstantiatedSingleton)));
+      containerMock.Setup(x => x.RegisterType(typeof(ImplementationOfAbstractClassWithoutContract)));
+      containerMock.Setup(x => x.RegisterType(typeof(TestClassWithFactoryDependency)));
 
       sut.AddAssemblyOf<ITestInterface>();
       sut.RegisterToContainer(containerMock.Object);
@@ -163,6 +169,7 @@ namespace TestKitten
     }
 
     [TestMethod]
+    [ExcludeFromCodeCoverage]
     public void RegisterAllAbstractImplementationsAutomatically()
     {
       var containerMock = new Mock<IDependencyContainer>(MockBehavior.Strict);
@@ -176,6 +183,7 @@ namespace TestKitten
 
       containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractContract), typeof(ImplementationOfAbstractContract), false));
       containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractTestImplementation), typeof(ImplementationOfAbstractTestImplementation), false));
+      containerMock.Setup(x => x.RegisterImplementation(typeof(AbstractClassWithoutContract), typeof(ImplementationOfAbstractClassWithoutContract), false));
 
       sut.AddAssemblyOf<ITestInterface>();
       sut.RegisterToContainer(containerMock.Object);
